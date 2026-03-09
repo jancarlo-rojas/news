@@ -1089,6 +1089,27 @@ input[type="password"]:focus {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
+/* Chat link */
+.pulse-nav-chat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-chat-link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.nav-chat-link:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 /* Right nav: auth buttons */
 .pulse-nav-right {
   display: flex;

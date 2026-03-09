@@ -1,5 +1,7 @@
 # News
 
+![PulseReader](./images/home.png)
+
 ## Setup
 
 ```bash
