@@ -13,26 +13,43 @@ const Person        = require('../models/Person');
 // Auth middleware (optional  only used on protected routes)
 const { verifyToken } = require('../middleware/auth');
 
-//  GET /api/threads  list active threads sorted by heat (pinned first) 
-// Only returns threads that have at least one article  never shows empty categories.
+//  GET /api/threads  list active threads sorted by heat (pinned first)
+// By default, includes seeded active threads even before article counts populate.
 router.get('/', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-    const threads = await Thread.find({ isActive: true, articleCount: { $gt: 0 } })
-      .sort({ isPinned: -1, heatScore: -1 })
+    const includeEmpty = ['1', 'true', 'yes'].includes(String(req.query.includeEmpty || '').toLowerCase());
+    const query = includeEmpty
+      ? { isActive: true }
+      : { isActive: true, articleCount: { $gt: 0 } };
+
+    const threads = await Thread.find(query)
+      .sort({ isPinned: -1, articleCount24h: -1, articleCount7d: -1, articleCount: -1, heatScore: -1 })
       .limit(limit)
       .lean();
+    
+    // Always put "other" at the end, regardless of heat score
+    const otherIndex = threads.findIndex(t => t.slug === 'other');
+    if (otherIndex > -1 && otherIndex < threads.length - 1) {
+      const [other] = threads.splice(otherIndex, 1);
+      threads.push(other);
+    }
+    
     res.json({ threads });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load threads' });
   }
 });
 
-//  GET /api/threads/active-regions  regions that have 1 active thread 
+//  GET /api/threads/active-regions  regions that have >=1 active thread
 // Used by the frontend to hide empty region tabs dynamically.
 router.get('/active-regions', async (req, res) => {
   try {
-    const regions = await Thread.distinct('region', { isActive: true, articleCount: { $gt: 0 } });
+    const includeEmpty = ['1', 'true', 'yes'].includes(String(req.query.includeEmpty || '').toLowerCase());
+    const query = includeEmpty
+      ? { isActive: true }
+      : { isActive: true, articleCount: { $gt: 0 } };
+    const regions = await Thread.distinct('region', query);
     res.json({ regions: regions.filter(Boolean).sort() });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load regions' });
@@ -47,7 +64,7 @@ router.get('/followed', verifyToken, async (req, res) => {
     if (!follows.length) return res.json({ threads: [] });
     const slugs = follows.map((f) => f.threadSlug);
     const threads = await Thread.find({ slug: { $in: slugs } })
-      .sort({ heatScore: -1 })
+      .sort({ articleCount24h: -1, articleCount7d: -1, articleCount: -1, heatScore: -1 })
       .lean();
     res.json({ threads });
   } catch (err) {
@@ -155,7 +172,7 @@ router.get('/market-tags/:tag/threads', async (req, res) => {
       isActive: true,
       articleCount: { $gt: 0 },
     })
-      .sort({ heatScore: -1 })
+      .sort({ articleCount24h: -1, articleCount7d: -1, articleCount: -1, heatScore: -1 })
       .lean();
     res.json({ tag, threads });
   } catch (err) {

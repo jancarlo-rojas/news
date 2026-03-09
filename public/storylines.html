@@ -48,7 +48,13 @@
   <main class="storylines-main">
     <div class="storylines-page-header">
       <h1 class="storylines-page-title">🗳️ Ongoing Storylines</h1>
-      <p class="storylines-page-subtitle">Track developing crises, conflicts, and political events as they unfold.</p>
+      <p class="storylines-page-subtitle">Track developing crises, conflicts, scandals, and political events as they unfold.</p>
+      <!-- Category filter tabs -->
+      <div class="storylines-category-tabs" id="categoryTabs">
+        <button class="category-tab active" data-category="">All</button>
+        <button class="category-tab" data-category="conflict">⚔️ Conflicts</button>
+        <button class="category-tab" data-category="scandal">🔍 Scandals</button>
+      </div>
       <!-- Region filter tabs -->
       <div class="storylines-region-tabs" id="regionTabs">
         <button class="region-tab active" data-region="">All Regions</button>
@@ -81,6 +87,7 @@
   'use strict';
   var currentUser=null;
   var currentRegion='';
+  var currentCategory='';
   var currentMarketTag='';
   var allThreads=[];
 
@@ -99,7 +106,9 @@
   var MARKET_TAG_LABELS={'oil-markets':'\uD83D\uDEE2\uFE0F Oil Markets','defense-spending':'\uD83D\uDEE1\uFE0F Defense','sanctions-trade':'\uD83D\uDEAB Sanctions','currency-wars':'\uD83D\uDCB1 Currency','commodity-prices':'\uD83D\uDCE6 Commodities','central-bank-policy':'\uD83C\uDFE6 Central Banks','tech-regulation':'\uD83D\uDCBB Tech Policy','debt-crisis':'\uD83D\uDCC9 Debt Crisis'};
 
   function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-  function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Date.now()-d;if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
+  function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Math.max(0,Date.now()-d);if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
+  function normRegion(v){return String(v||'').replace(/\s+/g,'').toLowerCase();}
+  function threadCategory(t){return t.parentCategory||t.category||'world';}
   function biasClass(d){if(!d||d==='unknown')return'bias-unknown';if(d==='center')return'bias-center';return d.includes('left')?'bias-left':'bias-right';}
   function qualityClass(q){return q>=8?'q-high':q>=5?'q-mid':'q-low';}
 
@@ -169,7 +178,7 @@
           banner.innerHTML='<span>Filtered by: <strong>'+esc(label)+'</strong></span><button class="active-filter-clear" onclick="clearMarketFilter()">&#x2715; Clear</button>';
         }
         if(!filtered.length){grid.innerHTML='<div class="grid-empty"><p>No storylines match this market signal.</p></div>';return;}
-        renderGrid(filtered);
+        renderGrid(filtered,'thread');
       }catch(e){
         grid.innerHTML='<div class="grid-empty"><p>No storylines match this market signal.</p></div>';
       }
@@ -181,7 +190,8 @@
 
   async function loadThreads(){
     try{
-      var url='/api/threads?limit=100';
+      // Include seeded threads even before first aggregation cycle updates articleCount.
+      var url='/api/threads?limit=100&includeEmpty=1';
       var res=await fetch(url);
       var data=await res.json();
       allThreads=data.threads||[];
@@ -192,7 +202,7 @@
     }
   }
 
-  // Show only region tabs that have at least one active thread with articles.
+  // Show only region tabs that have at least one active thread.
   function updateRegionTabs(){
     var activeRegions=new Set(allThreads.map(function(t){return t.region||'Global';}));
     document.querySelectorAll('.region-tab[data-region]').forEach(function(tab){
@@ -220,26 +230,45 @@
 
   var followedSlugs=new Set();
 
-  function renderGrid(threads){
-    var filtered=(threads!==undefined)?threads:(currentRegion?allThreads.filter(function(t){return t.region===currentRegion;}):allThreads);
+  function renderGrid(threads,mode){
+    var filtered=(threads!==undefined)?threads:allThreads;
+    // Apply region filter
+    if(currentRegion){filtered=filtered.filter(function(t){return normRegion(t.region||'Global')===normRegion(currentRegion);});}
+    // Apply category filter
+    if(currentCategory){filtered=filtered.filter(function(t){return threadCategory(t)===currentCategory;});}
+    // Popularity-first ordering only (verification/quality does not affect placement)
+    filtered=filtered.slice().sort(function(a,b){
+      if(a.slug==='other'&&b.slug!=='other')return 1;
+      if(b.slug==='other'&&a.slug!=='other')return -1;
+      var a24=Number(a.articleCount24h||0), b24=Number(b.articleCount24h||0);
+      if(b24!==a24)return b24-a24;
+      var a7=Number(a.articleCount7d||0), b7=Number(b.articleCount7d||0);
+      if(b7!==a7)return b7-a7;
+      var at=Number(a.articleCount||0), bt=Number(b.articleCount||0);
+      if(bt!==at)return bt-at;
+      return Number(b.heatScore||0)-Number(a.heatScore||0);
+    });
     var grid=document.getElementById('storylinesGrid');
-    if(!filtered.length){grid.innerHTML='<div class="grid-empty"><p>No storylines in this region yet.</p></div>';return;}
+    if(!filtered.length){grid.innerHTML='<div class="grid-empty"><p>No storylines match the selected filters.</p></div>';return;}
     grid.innerHTML=filtered.map(function(t){
       var isFollowed=followedSlugs.has(t.slug);
       var heat=Math.min(5,Math.round((t.heatScore||0)/20));
       var heatDots='';
       for(var i=0;i<5;i++)heatDots+='<span class="heat-dot'+(i<heat?' heat-dot-on':'')+'"></span>';
-      return '<div class="thread-card" data-slug="'+esc(t.slug)+'" style="--thread-color:'+esc(t.color||'#6366f1')+'">'+
-        '<div class="thread-card-stripe" style="background:'+esc(t.color||'#6366f1')+'"></div>'+
+      var isScandal=(threadCategory(t)==='scandal');
+      var cardClass='thread-card'+(isScandal?' thread-card-scandal':'');
+      var stripeColor=isScandal?(t.color||'#9333ea'):(t.color||'#6366f1');
+      var icon=isScandal?(t.icon||'🔍'):(t.icon||'🗞');
+      return '<div class="'+cardClass+'" data-slug="'+esc(t.slug)+'" style="--thread-color:'+esc(stripeColor)+'">'+
+        '<div class="thread-card-stripe" style="background:'+esc(stripeColor)+'"></div>'+
         '<div class="thread-card-body">'+
         '<div class="thread-card-top">'+
-        '<span class="thread-card-icon">'+esc(t.icon||'\uD83D\uDDD2')+'</span>'+
+        '<span class="thread-card-icon">'+esc(icon)+'</span>'+
         '<div class="thread-card-meta">'+
         '<div class="thread-card-name">'+esc(t.name)+'</div>'+
         '<div class="thread-card-region">'+esc(t.region||'Global')+'</div>'+
         '</div>'+
-        '<button class="thread-follow-btn'+(isFollowed?' followed':'')+'\" data-slug="'+esc(t.slug)+'" onclick="toggleFollow(event,this)">'+
-        (isFollowed?'✓ Following':'+ Follow')+'</button>'+
+        '<button class="thread-follow-btn'+(isFollowed?' followed':'')+'\" data-slug="'+esc(t.slug)+'" onclick="toggleFollow(event,this)">'+(isFollowed?'✓ Following':'+ Follow')+'</button>'+
         '</div>'+
         '<p class="thread-card-desc">'+esc((t.description||'').slice(0,120))+'</p>'+
         '<div class="thread-card-stats">'+
@@ -330,10 +359,14 @@
           '</div>';
       }
 
+      var isScandal=(t.parentCategory==='scandal');
+      var overlayIcon=isScandal?(t.icon||'🔍'):(t.icon||'🗞');
+      var overlayColor=isScandal?(t.color||'#9333ea'):(t.color||'#6366f1');
+
       document.getElementById('threadOverlayInner').innerHTML=
-        '<div class="overlay-header" style="border-color:'+esc(t.color||'#6366f1')+'">'+
+        '<div class="overlay-header" style="border-color:'+esc(overlayColor)+'">'+
         '<div class="overlay-header-left">'+
-        '<span class="overlay-icon">'+esc(t.icon||'\uD83D\uDDD2')+'</span>'+
+        '<span class="overlay-icon">'+esc(overlayIcon)+'</span>'+
         '<div>'+
         '<h2 class="overlay-title">'+esc(t.name)+'</h2>'+
         '<div class="overlay-region">'+esc(t.region||'Global')+'</div>'+
@@ -390,7 +423,7 @@
       var data=await res.json();
       el.innerHTML='<div class="overlay-context-box">'+
         '<div class="overlay-section-title">🧠 AI Context Briefing</div>'+
-        '<p class="overlay-context-text">'+esc(data.briefing||'No briefing available.')+'</p>'+
+        '<p class="overlay-context-text">'+esc(data.contextBriefing||'No briefing available.')+'</p>'+
         '</div>';
     }catch(e){el.innerHTML='<p>Failed to load briefing.</p>';}
   }
@@ -446,6 +479,15 @@
     });
   });
 
+  document.querySelectorAll('.category-tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.category-tab').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      currentCategory=btn.dataset.category;
+      applyFiltersAndRender();
+    });
+  });
+
   async function init(){
     currentUser=await checkAuth();
     renderNav(currentUser);
@@ -462,6 +504,15 @@
       setMarketFilter(mkt);
       var section=document.getElementById('marketPulseSection');
       if(section)section.scrollIntoView({behavior:'smooth'});
+    }
+    // Check ?category= query param
+    var cat=params.get('category');
+    if(cat){
+      currentCategory=cat;
+      document.querySelectorAll('.category-tab').forEach(function(b){b.classList.remove('active');});
+      var catBtn=document.querySelector('.category-tab[data-category="'+cat+'"]');
+      if(catBtn)catBtn.classList.add('active');
+      applyFiltersAndRender();
     }
     // Auto-refresh every 15 minutes to pick up new articles and auto-spawned threads
     setInterval(async function(){

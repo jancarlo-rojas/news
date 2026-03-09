@@ -10,8 +10,14 @@ const globalArticleSchema = new mongoose.Schema(
       type: String,
       // All active API sources — extend this list when adding new integrations.
       enum: ['newsapi', 'newsapi_ai', 'webzio', 'worldnews', 'newsdata', 'thenewsapi',
-             'guardian', 'nyt', 'gdelt', 'gnews', 'rss'],
+              'guardian', 'nyt', 'gdelt', 'gnews', 'rss', 'twingly'],
       required: true,
+    },
+    sourceType: {
+      type: String,
+      enum: ['us-mainstream', 'international-mainstream', 'us-independent', 'other'],
+      default: 'other',
+      index: true,
     },
     author:      { type: String, default: '' },
     summary:     { type: String, default: '' },

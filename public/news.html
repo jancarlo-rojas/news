@@ -25,6 +25,9 @@
         <button class="cat-tab" data-cat="diplomacy">Diplomacy</button>
         <button class="cat-tab" data-cat="economy">Economy</button>
       </nav>
+      <div class="pulse-nav-center">
+        <a href="storylines.html?category=scandal" class="nav-scandals-link">Scandals</a>
+      </div>
       <div class="pulse-nav-right" id="navRight"></div>
     </div>
   </header>
@@ -275,7 +278,7 @@ function getCountryBadge(country,region){
   var reg=region||'Global';
   return'<span class="country-badge" title="'+esc(reg)+'">'+(REGION_EMOJI[reg]||'\uD83C\uDF10')+' '+esc(reg)+'</span>';
 }
-function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Date.now()-d;if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
+function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Math.max(0,Date.now()-d);if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
 function readTime(t){return Math.max(1,Math.round((t||'').split(/\s+/).filter(Boolean).length/200));}
 function biasClass(d){if(!d||d==='unknown')return'bias-unknown';if(d==='center')return'bias-center';return d.includes('left')?'bias-left':'bias-right';}
 function qualityClass(q){return q>=8?'q-high':q>=5?'q-mid':'q-low';}

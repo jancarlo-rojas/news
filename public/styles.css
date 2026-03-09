@@ -1067,6 +1067,28 @@ input[type="password"]:focus {
 .cat-tab:hover { color: var(--text-primary); }
 .cat-tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
 
+/* Centered scandals link */
+.pulse-nav-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.nav-scandals-link {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.nav-scandals-link:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
 /* Right nav: auth buttons */
 .pulse-nav-right {
   display: flex;
@@ -2627,6 +2649,7 @@ input[type="password"]:focus {
 .card-stripe { width: 4px; border-radius: 4px 0 0 4px; flex-shrink: 0; }
 .cat-stripe-politics  { background: #ea4335; }
 .cat-stripe-conflict  { background: #f97316; }
+.cat-stripe-scandal   { background: #9333ea; }
 .cat-stripe-world     { background: #00bcd4; }
 .cat-stripe-diplomacy { background: #9c27b0; }
 .cat-stripe-economy   { background: #4285f4; }
@@ -2634,6 +2657,7 @@ input[type="password"]:focus {
 
 /*  Cat pill tints on storylines page  */
 .cat-conflict  { border-color: #f97316; color: #c2410c; }
+.cat-scandal   { border-color: #9333ea; color: #6b21a8; }
 .cat-diplomacy { border-color: #9c27b0; color: #6a1b9a; }
 .cat-economy   { border-color: #4285f4; color: #1a56c0; }
 
@@ -2647,7 +2671,26 @@ input[type="password"]:focus {
   padding: 1.5rem 1rem 4rem;
 }
 
-.storylines-page-header { margin-bottom: 1.5rem; }
+.storylines-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+.category-tab {
+  background: #F3F4F6;
+  border: none;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.category-tab:hover { background: #E5E7EB; }
+.category-tab.active { background: var(--accent, #2563EB); color: #fff; }
 
 .storylines-region-tabs {
   display: flex;
@@ -2686,6 +2729,14 @@ input[type="password"]:focus {
   transition: box-shadow 0.15s, transform 0.15s;
 }
 .thread-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+.thread-card-scandal {
+  background: linear-gradient(135deg, #fff 0%, #faf5ff 100%);
+  border: 1px solid #e9d5ff;
+}
+.thread-card-scandal:hover { 
+  box-shadow: 0 4px 16px rgba(147,51,234,0.15); 
+  border-color: #d8b4fe;
+}
 .thread-card-stripe { width: 5px; flex-shrink: 0; }
 .thread-card-body { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
 .thread-card-top { display: flex; align-items: flex-start; gap: 10px; }

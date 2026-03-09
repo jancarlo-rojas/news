@@ -246,7 +246,7 @@ function fmtDate(iso){
   if(!iso)return'';
   var d=new Date(iso);
   if(isNaN(d))return'';
-  var diff=Date.now()-d;
+  var diff=Math.max(0,Date.now()-d);
   if(diff<3600000)return Math.round(diff/60000)+'m ago';
   if(diff<86400000)return Math.round(diff/3600000)+'h ago';
   return d.toLocaleDateString([],{month:'short',day:'numeric'});
