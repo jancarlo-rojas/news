@@ -13,3 +13,7 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude agents (local only)
+.claude/
+.agent.md
