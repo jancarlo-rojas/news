@@ -1,0 +1,696 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseReader — Global Political Intelligence</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="pulse-body">
+
+  <!-- NAV BAR -->
+  <header class="pulse-nav" id="pulseNav">
+    <div class="pulse-nav-inner">
+      <div class="pulse-nav-left">
+        <div class="pulse-logo-group">
+          <span class="pulse-logo">PulseReader</span>
+          <span class="pulse-tagline">Global Political Intelligence</span>
+        </div>
+      </div>
+      <nav class="pulse-cat-nav" id="catNav" aria-label="Categories">
+        <button class="cat-tab active" data-cat="">All</button>
+        <button class="cat-tab" data-cat="politics">Politics</button>
+        <button class="cat-tab" data-cat="world">World</button>
+        <button class="cat-tab" data-cat="conflict">War / Conflict</button>
+        <button class="cat-tab" data-cat="diplomacy">Diplomacy</button>
+        <button class="cat-tab" data-cat="economy">Economy</button>
+      </nav>
+      <div class="pulse-nav-right" id="navRight"></div>
+    </div>
+  </header>
+
+  <!-- MOBILE SIDEBAR -->
+  <div class="nav-overlay" id="navOverlay"></div>
+  <nav class="sidebar" id="sidebar" aria-hidden="true">
+    <div class="sidebar-header">
+      <span class="sidebar-title">PulseReader</span>
+      <button class="sidebar-close" id="sidebarClose" aria-label="Close">&times;</button>
+    </div>
+    <ul class="sidebar-links">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="chat.html">Chat</a></li>
+      <li><a href="news.html" class="active">News</a></li>
+    </ul>
+    <div id="sidebarAuth"></div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="pulse-main">
+
+    <!-- BIAS AWARENESS BANNER -->
+    <div class="bias-awareness-banner" id="biasBanner">
+      <span>&#x1F9E0; Every article is analyzed by AI for political lean and source quality. <strong>Click any bias badge</strong> to learn about media literacy.</span>
+      <button class="bias-banner-close" id="closeBanner" aria-label="Dismiss">&#x2715;</button>
+    </div>
+
+    <!-- HERO -->
+    <section class="pulse-hero" id="heroSection">
+      <div class="hero-loading" id="heroLoading">
+        <div class="skeleton-block skeleton-hero-title"></div>
+        <div class="skeleton-block skeleton-hero-meta"></div>
+      </div>
+    </section>
+
+    <!-- TRENDING -->
+    <section class="pulse-trending-section">
+      <div class="trending-label">&#x1F525; Trending Now</div>
+      <div class="trending-strip" id="trendingStrip"></div>
+    </section>
+
+    <!-- STORYLINES STRIP -->
+    <section class="storylines-section" id="storylinesSection">
+      <div class="storylines-header">
+        <span class="storylines-label">&#x1F5F3;&#xFE0F; Ongoing Storylines</span>
+        <a href="storylines.html" class="storylines-view-all">View all &#x2192;</a>
+      </div>
+      <div class="storylines-strip" id="storylinesStrip">
+        <div class="storylines-loading">Loading storylines&hellip;</div>
+      </div>
+    </section>
+
+    <!-- MARKET PULSE STRIP -->
+    <section class="market-pulse-section" id="marketPulseSection" style="display:none">
+      <div class="market-pulse-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>&#x1F4C8; Market Signals</span>
+        <a href="market-signals.html" style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);text-decoration:none">View all &#x2192;</a>
+      </div>
+      <div class="market-pulse-strip" id="marketPulseStrip"></div>
+    </section>
+
+    <!-- CONTENT -->
+    <div class="pulse-content-area">
+      <div class="pulse-filter-bar">
+        <div class="filter-sort-group">
+          <button class="sort-btn active" data-sort="trending">&#x1F525; Trending</button>
+          <button class="sort-btn" data-sort="latest">&#x1F552; Latest</button>
+          <button class="sort-btn" data-sort="quality">&#x2B50; Quality</button>
+          <button class="sort-btn sort-btn-foryou" id="forYouBtn" data-sort="for-you" style="display:none">&#x2728; For You</button>
+        </div>
+        <div class="filter-region-group">
+          <label class="bias-filter-label">Region:
+            <select id="regionFilter" class="filter-select-sm">
+              <option value="">All Regions</option>
+              <option value="Americas">&#x1F30E; Americas</option>
+              <option value="Europe">&#x1F1EA;&#x1F1FA; Europe</option>
+              <option value="Asia">&#x1F30F; Asia</option>
+              <option value="MiddleEast">&#x1F54C; Middle East</option>
+              <option value="Africa">&#x1F30D; Africa</option>
+              <option value="Oceania">&#x1F1E6;&#x1F1FA; Oceania</option>
+            </select>
+          </label>
+        </div>
+        <div class="filter-bias-group">
+          <label class="bias-filter-label">Bias:
+            <select id="biasFilterGlobal" class="filter-select-sm">
+              <option value="">All lean</option>
+              <option value="left">&#x2B05; Left</option>
+              <option value="center">&#x26AB; Center</option>
+              <option value="right">&#x27A1; Right</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="pulse-columns">
+        <div class="pulse-article-col">
+          <div class="article-grid" id="articleGrid"></div>
+          <div class="load-more-row" id="loadMoreRow" style="display:none">
+            <button class="load-more-btn" id="loadMoreBtn">Load more articles</button>
+          </div>
+        </div>
+
+        <aside class="pulse-sidebar-col">
+          <div class="sidebar-widget" id="keyFiguresWidget" style="display:none">
+            <div class="widget-title">&#x1F465; Key Figures Today</div>
+            <div class="key-figures-list" id="keyFiguresList"><p class="widget-caption">Loading&hellip;</p></div>
+          </div>
+
+          <div class="sidebar-widget" id="diversityWidget">
+            <div class="widget-title">&#x1F4CA; Today&#39;s Bias Breakdown</div>
+            <div class="bias-spectrum-bar" id="biasSpectrumBar"><div class="spectrum-loading">Loading&hellip;</div></div>
+            <p class="widget-caption">Based on the last 24 hours across all sources.</p>
+          </div>
+
+          <div class="sidebar-widget" id="recommendedWidget" style="display:none">
+            <div class="widget-title">&#x2728; Recommended For You</div>
+            <div class="rec-list" id="recList"><p class="widget-caption">Loading&hellip;</p></div>
+          </div>
+
+          <div class="sidebar-widget" id="mySourcesWidget" style="display:none">
+            <div class="widget-title">&#x1F4E1; My RSS Sources</div>
+            <details class="sources-details">
+              <summary class="sources-toggle">Manage custom feeds</summary>
+              <div class="sources-inner">
+                <form class="source-mini-form" id="miniAddForm">
+                  <input type="url" id="miniUrl" class="source-input" placeholder="RSS feed URL" required />
+                  <input type="text" id="miniLabel" class="source-input" placeholder="Label (optional)" maxlength="80" />
+                  <button type="submit" class="source-add-btn">Add Feed</button>
+                  <div id="miniAlert" class="source-alert"></div>
+                </form>
+                <ul class="source-list" id="miniSourceList">
+                  <li class="user-list-loading">Loading&hellip;</li>
+                </ul>
+                <button class="fetch-btn" id="rssRefreshBtn">
+                  <span id="rssRefreshText">Fetch &amp; Analyze</span>
+                </button>
+              </div>
+            </details>
+          </div>
+
+          <div class="sidebar-widget cta-widget" id="guestCta">
+            <div class="widget-title">&#x1F5FA;&#xFE0F; Track Global Politics</div>
+            <p class="widget-caption">Create a free account to save analysis, follow regions, and get personalized political intelligence tailored to your interests.</p>
+            <a href="register.html" class="cta-btn">Get started free &#x2192;</a>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <!-- BIAS MODAL -->
+  <div class="bias-modal-overlay" id="biasModalOverlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="biasModalTitle">
+    <div class="bias-modal">
+      <button class="bias-modal-close" id="biasModalClose" aria-label="Close">&times;</button>
+      <h2 class="bias-modal-title" id="biasModalTitle">Media Literacy Report</h2>
+      <div id="biasModalContent"></div>
+      <div class="bias-modal-footer">
+        <p>Reading diverse sources helps you form a more complete picture of the news.</p>
+        <button class="bias-modal-action" id="biasModalAction">See opposite-perspective articles</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+var currentPage=1,currentCategory='',currentSort='trending',currentBiasFilter='',currentCountry='',totalPages=1,isLoading=false,currentUser=null;
+var CAT_EMOJIS={politics:'&#x1F3DB;',world:'&#x1F30D;',conflict:'&#x2694;&#xFE0F;',diplomacy:'&#x1F91D;',economy:'&#x1F4B9;',general:'&#x1F4F0;'};
+var CAT_TEXT={politics:'Politics',world:'World',conflict:'War / Conflict',diplomacy:'Diplomacy',economy:'Economy',general:'General'};
+var FLAG_MAP={
+  'US':{emoji:'\uD83C\uDDFA\uD83C\uDDF8',name:'United States'},
+  'GB':{emoji:'\uD83C\uDDEC\uD83C\uDDE7',name:'United Kingdom'},
+  'UK':{emoji:'\uD83C\uDDEC\uD83C\uDDE7',name:'United Kingdom'},
+  'RU':{emoji:'\uD83C\uDDF7\uD83C\uDDFA',name:'Russia'},
+  'CN':{emoji:'\uD83C\uDDE8\uD83C\uDDF3',name:'China'},
+  'DE':{emoji:'\uD83C\uDDE9\uD83C\uDDEA',name:'Germany'},
+  'FR':{emoji:'\uD83C\uDDEB\uD83C\uDDF7',name:'France'},
+  'JP':{emoji:'\uD83C\uDDEF\uD83C\uDDF5',name:'Japan'},
+  'IN':{emoji:'\uD83C\uDDEE\uD83C\uDDF3',name:'India'},
+  'BR':{emoji:'\uD83C\uDDE7\uD83C\uDDF7',name:'Brazil'},
+  'CA':{emoji:'\uD83C\uDDE8\uD83C\uDDE6',name:'Canada'},
+  'AU':{emoji:'\uD83C\uDDE6\uD83C\uDDFA',name:'Australia'},
+  'KR':{emoji:'\uD83C\uDDF0\uD83C\uDDF7',name:'South Korea'},
+  'MX':{emoji:'\uD83C\uDDF2\uD83C\uDDFD',name:'Mexico'},
+  'IT':{emoji:'\uD83C\uDDEE\uD83C\uDDF9',name:'Italy'},
+  'ES':{emoji:'\uD83C\uDDEA\uD83C\uDDF8',name:'Spain'},
+  'TR':{emoji:'\uD83C\uDDF9\uD83C\uDDF7',name:'Turkey'},
+  'SA':{emoji:'\uD83C\uDDF8\uD83C\uDDE6',name:'Saudi Arabia'},
+  'UA':{emoji:'\uD83C\uDDFA\uD83C\uDDE6',name:'Ukraine'},
+  'IL':{emoji:'\uD83C\uDDEE\uD83C\uDDF1',name:'Israel'},
+  'PS':{emoji:'\uD83C\uDDF5\uD83C\uDDF8',name:'Palestine'},
+  'IR':{emoji:'\uD83C\uDDEE\uD83C\uDDF7',name:'Iran'},
+  'PK':{emoji:'\uD83C\uDDF5\uD83C\uDDF0',name:'Pakistan'},
+  'AF':{emoji:'\uD83C\uDDE6\uD83C\uDDEB',name:'Afghanistan'},
+  'SY':{emoji:'\uD83C\uDDF8\uD83C\uDDFE',name:'Syria'},
+  'IQ':{emoji:'\uD83C\uDDEE\uD83C\uDDF6',name:'Iraq'},
+  'LB':{emoji:'\uD83C\uDDF1\uD83C\uDDE7',name:'Lebanon'},
+  'EG':{emoji:'\uD83C\uDDEA\uD83C\uDDEC',name:'Egypt'},
+  'ZA':{emoji:'\uD83C\uDDFF\uD83C\uDDE6',name:'South Africa'},
+  'NG':{emoji:'\uD83C\uDDF3\uD83C\uDDEC',name:'Nigeria'},
+  'ET':{emoji:'\uD83C\uDDEA\uD83C\uDDF9',name:'Ethiopia'},
+  'PL':{emoji:'\uD83C\uDDF5\uD83C\uDDF1',name:'Poland'},
+  'SE':{emoji:'\uD83C\uDDF8\uD83C\uDDEA',name:'Sweden'},
+  'NL':{emoji:'\uD83C\uDDF3\uD83C\uDDF1',name:'Netherlands'},
+  'CH':{emoji:'\uD83C\uDDE8\uD83C\uDDED',name:'Switzerland'},
+  'NO':{emoji:'\uD83C\uDDF3\uD83C\uDDF4',name:'Norway'},
+  'FI':{emoji:'\uD83C\uDDEB\uD83C\uDDEE',name:'Finland'},
+  'BE':{emoji:'\uD83C\uDDE7\uD83C\uDDEA',name:'Belgium'},
+  'PT':{emoji:'\uD83C\uDDF5\uD83C\uDDF9',name:'Portugal'},
+  'GR':{emoji:'\uD83C\uDDEC\uD83C\uDDF7',name:'Greece'},
+  'HU':{emoji:'\uD83C\uDDED\uD83C\uDDFA',name:'Hungary'},
+  'CZ':{emoji:'\uD83C\uDDE8\uD83C\uDDFF',name:'Czech Republic'},
+  'RO':{emoji:'\uD83C\uDDF7\uD83C\uDDF4',name:'Romania'},
+  'AT':{emoji:'\uD83C\uDDE6\uD83C\uDDF9',name:'Austria'},
+  'TH':{emoji:'\uD83C\uDDF9\uD83C\uDDED',name:'Thailand'},
+  'ID':{emoji:'\uD83C\uDDEE\uD83C\uDDE9',name:'Indonesia'},
+  'MY':{emoji:'\uD83C\uDDF2\uD83C\uDDFE',name:'Malaysia'},
+  'VN':{emoji:'\uD83C\uDDFB\uD83C\uDDF3',name:'Vietnam'},
+  'PH':{emoji:'\uD83C\uDDF5\uD83C\uDDED',name:'Philippines'},
+  'KP':{emoji:'\uD83C\uDDF0\uD83C\uDDF5',name:'North Korea'},
+  'TW':{emoji:'\uD83C\uDDF9\uD83C\uDDFC',name:'Taiwan'},
+  'SG':{emoji:'\uD83C\uDDF8\uD83C\uDDEC',name:'Singapore'},
+  'AE':{emoji:'\uD83C\uDDE6\uD83C\uDDEA',name:'UAE'},
+  'QA':{emoji:'\uD83C\uDDF6\uD83C\uDDE6',name:'Qatar'},
+  'YE':{emoji:'\uD83C\uDDFE\uD83C\uDDEA',name:'Yemen'},
+  'SD':{emoji:'\uD83C\uDDF8\uD83C\uDDE9',name:'Sudan'},
+  'SO':{emoji:'\uD83C\uDDF8\uD83C\uDDF4',name:'Somalia'},
+  'LY':{emoji:'\uD83C\uDDF1\uD83C\uDDFE',name:'Libya'},
+  'MM':{emoji:'\uD83C\uDDF2\uD83C\uDDF2',name:'Myanmar'},
+  'VE':{emoji:'\uD83C\uDDFB\uD83C\uDDEA',name:'Venezuela'},
+  'CO':{emoji:'\uD83C\uDDE8\uD83C\uDDF4',name:'Colombia'},
+  'AR':{emoji:'\uD83C\uDDE6\uD83C\uDDF7',name:'Argentina'},
+  'CL':{emoji:'\uD83C\uDDE8\uD83C\uDDF1',name:'Chile'},
+  'GLOBAL':{emoji:'\uD83C\uDF10',name:'Global'}
+};
+var BIAS_LABELS={'left':' Left','center-left':' Ctr-Left','center':' Center','center-right':'Ctr-Right ','right':'Right ','unknown':'? Unknown'};
+var BIAS_SHORT={'left':'Left','center-left':'Ctr-Left','center':'Center','center-right':'Ctr-Right','right':'Right','unknown':'Unknown'};
+var OPPOSITE={'left':'right','center-left':'center-right','center':'center','center-right':'center-left','right':'left','unknown':''};
+var MARKET_TAG_LABELS={'oil-markets':'\uD83D\uDEE2\uFE0F Oil Markets','defense-spending':'\uD83D\uDEE1\uFE0F Defense','sanctions-trade':'\uD83D\uDEAB Sanctions','currency-wars':'\uD83D\uDCB1 Currency','commodity-prices':'\uD83D\uDCE6 Commodities','central-bank-policy':'\uD83C\uDFE6 Central Banks','tech-regulation':'\uD83D\uDCBB Tech Policy','debt-crisis':'\uD83D\uDCC9 Debt Crisis'};
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+var REGION_EMOJI={'Americas':'\uD83C\uDF0E','Europe':'\uD83C\uDF0D','Asia':'\uD83C\uDF0F','MiddleEast':'\uD83D\uDD4C','Africa':'\uD83C\uDF0D','Oceania':'\uD83C\uDF0F','Global':'\uD83C\uDF10'};
+function getCountryBadge(country,region){
+  if(!country&&!region)return'';
+  var info=FLAG_MAP[String(country||'').toUpperCase()];
+  if(info)return'<span class="country-badge" title="'+esc(info.name)+'">'+info.emoji+' '+esc(info.name)+'</span>';
+  var reg=region||'Global';
+  return'<span class="country-badge" title="'+esc(reg)+'">'+(REGION_EMOJI[reg]||'\uD83C\uDF10')+' '+esc(reg)+'</span>';
+}
+function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Date.now()-d;if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
+function readTime(t){return Math.max(1,Math.round((t||'').split(/\s+/).filter(Boolean).length/200));}
+function biasClass(d){if(!d||d==='unknown')return'bias-unknown';if(d==='center')return'bias-center';return d.includes('left')?'bias-left':'bias-right';}
+function qualityClass(q){return q>=8?'q-high':q>=5?'q-mid':'q-low';}
+
+async function checkAuth(){try{var r=await fetch('/api/dashboard',{credentials:'same-origin'});if(r.ok)return await r.json();}catch(e){}return null;}
+
+function renderNav(user){
+  var el=document.getElementById('navRight');
+  if(user){
+    el.innerHTML='<span class="nav-username">'+esc(user.username||'You')+'</span><a href="dashboard.html" class="nav-link-btn">Dashboard</a><button class="nav-link-btn" id="navLogout">Sign out</button>';
+    document.getElementById('navLogout').addEventListener('click',async function(){await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});window.location.reload();});
+    var sa=document.getElementById('sidebarAuth');
+    sa.innerHTML='<button class="sidebar-logout" id="sidebarLogout">Sign out</button>';
+    document.getElementById('sidebarLogout').addEventListener('click',async function(){await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});window.location.reload();});
+  }else{
+    el.innerHTML='<a href="login.html" class="nav-link-btn">Log in</a><a href="register.html" class="nav-cta-btn">Sign up free</a>';
+  }
+}
+
+async function loadHero(){
+  try{
+    var res=await fetch('/api/news/hero');
+    var data=await res.json();
+    var a=data.article;
+    var heroEl=document.getElementById('heroSection');
+    var ld=document.getElementById('heroLoading');
+    if(ld)ld.remove();
+    if(!a){heroEl.innerHTML='<div class="hero-empty"><p>Top stories loading  check back soon.</p></div>';return;}
+    var imgHtml=a.imageUrl?'<div class="hero-image" style="background-image:url(\''+esc(a.imageUrl)+'\')"></div>':'<div class="hero-image hero-cat-'+esc(a.category||'general')+'"></div>';
+    heroEl.innerHTML='<div class="hero-card" data-id="'+esc(a._id)+'">'+
+      '<div class="hero-card-inner">'+imgHtml+
+      '<div class="hero-body">'+
+      '<div class="hero-meta-top"><span class="hero-source">'+esc(a.source)+'</span>'+
+      '<span class="hero-cat-pill cat-'+esc(a.category||'general')+'">'+esc(CAT_TEXT[a.category]||'General')+'</span>'+
+      '<span class="hero-date">'+fmtDate(a.publishedAt)+'</span></div>'+
+      '<h1 class="hero-title"><a href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer" id="heroTitleLink">'+esc(a.title)+'</a></h1>'+
+      '<p class="hero-summary">'+esc((a.summary||'').slice(0,280))+(a.summary&&a.summary.length>280?'&hellip;':'')+'</p>'+
+      '<div class="hero-footer">'+
+      '<button class="bias-badge '+biasClass(a.biasDirection)+' bias-clickable" data-article=\''+esc(JSON.stringify({_id:a._id,biasDirection:a.biasDirection,biasLevel:a.biasLevel,biasNote:a.biasNote,title:a.title,source:a.source}))+'\'>'+esc(BIAS_LABELS[a.biasDirection]||'? Unknown')+'</button>'+
+      '<span class="quality-badge '+qualityClass(a.qualityScore)+'" title="'+esc(a.qualityNote)+'">Q '+esc(String(a.qualityScore||'?'))+'</span>'+
+      (a.biasLevel==='high'?'<span class="bias-high-flag">&#x26A0; High Bias</span>':'')+
+      '<span class="hero-read-time">'+readTime(a.summary)+' min read</span>'+
+      '</div></div></div></div>';
+    trackEngage(a._id,'view');
+    document.getElementById('heroTitleLink').addEventListener('click',function(){trackEngage(a._id,'view');});
+    heroEl.querySelectorAll('.bias-clickable').forEach(attachBiasModal);
+  }catch(e){console.error('hero error:',e);}
+}
+
+async function loadTrending(){
+  try{
+    var res=await fetch('/api/news/trending');
+    var data=await res.json();
+    var articles=data.articles||[];
+    var strip=document.getElementById('trendingStrip');
+    if(!articles.length){strip.innerHTML='<p class="trending-empty">Trending stories loading&hellip;</p>';return;}
+    strip.innerHTML=articles.map(function(a,i){
+      return '<a class="trending-card" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer" data-id="'+esc(a._id)+'">'+
+        '<span class="trending-num">'+(i+1)+'</span>'+
+        '<div class="trending-info">'+
+        '<span class="trending-source">'+esc(a.source)+'</span>'+
+        '<span class="trending-title">'+esc(a.title.slice(0,75))+(a.title.length>75?'&hellip;':'')+'</span>'+
+        '<span class="trending-cat cat-'+esc(a.category||'general')+'">'+esc(CAT_TEXT[a.category]||'General')+'</span>'+
+        '</div></a>';
+    }).join('');
+    strip.querySelectorAll('.trending-card').forEach(function(el){
+      el.addEventListener('click',function(){trackEngage(el.dataset.id,'view');});
+    });
+  }catch(e){console.error('trending error:',e);}
+}
+
+async function loadArticles(append){
+  if(isLoading)return;
+  isLoading=true;
+  if(!append){
+    var g=document.getElementById('articleGrid');
+    g.innerHTML='<div class="grid-loading"><span>Loading articles&hellip;</span></div>';
+    document.getElementById('loadMoreRow').style.display='none';
+  }
+  try{
+    var articles=[];
+    if(currentSort==='for-you'){
+      var res=await fetch('/api/threads/for-you',{credentials:'same-origin'});
+      var data=await res.json();
+      articles=data.articles||[];totalPages=1;
+    }else{
+      var params=new URLSearchParams({category:currentCategory,sort:currentSort,page:currentPage,limit:20});
+      if(currentCountry)params.set('region',currentCountry);
+      if(currentBiasFilter)params.set('bias',currentBiasFilter);
+      var res=await fetch('/api/news/global?'+params);
+      var data=await res.json();
+      articles=data.articles||[];
+      totalPages=data.pages||1;
+    }
+    var filtered=articles; // bias filtering is now server-side via ?bias= param
+    var grid=document.getElementById('articleGrid');
+    if(!append)grid.innerHTML='';
+    if(!filtered.length&&!append){grid.innerHTML='<div class="grid-empty"><p>No articles match your filters yet. More stories arrive every 15 minutes.</p></div>';return;}
+    filtered.forEach(function(a){grid.appendChild(buildCard(a));});
+    grid.querySelectorAll('.bias-clickable:not([data-ev])').forEach(function(el){el.setAttribute('data-ev','1');attachBiasModal(el);});
+    grid.querySelectorAll('.save-btn:not([data-ev])').forEach(function(el){el.setAttribute('data-ev','1');el.addEventListener('click',function(){handleSave(el);});});
+    grid.querySelectorAll('.share-btn:not([data-ev])').forEach(function(el){el.setAttribute('data-ev','1');el.addEventListener('click',function(){handleShare(el);});});
+    var lm=document.getElementById('loadMoreRow');
+    lm.style.display=currentPage<totalPages?'flex':'none';
+  }catch(e){
+    if(!append)document.getElementById('articleGrid').innerHTML='<div class="grid-empty"><p>Failed to load articles. Please refresh.</p></div>';
+  }finally{isLoading=false;}
+}
+
+function getSaved(){try{return new Set(JSON.parse(localStorage.getItem('pulse_saved')||'[]'));}catch(e){return new Set();}}
+function setSaved(s){localStorage.setItem('pulse_saved',JSON.stringify([...s]));}
+
+function buildCard(a){
+  var saved=getSaved().has(String(a._id));
+  var el=document.createElement('article');
+  el.className='article-card';
+  el.dataset.id=a._id;
+  var bd=JSON.stringify({_id:a._id,biasDirection:a.biasDirection,biasLevel:a.biasLevel,biasNote:a.biasNote,title:a.title,source:a.source});
+  var displaySummary=a.expandedSummary||a.summary||'';
+  var isLong=displaySummary.length>280;
+  var summaryHtml='';
+  if(displaySummary){
+    summaryHtml='<div class="card-summary-wrap">'+
+      (a.expandedSummary?'<span class="ai-summary-badge">&#x1F916; AI Briefing</span>':'')+
+      '<p class="card-summary2" data-full="'+esc(displaySummary)+'">'+(isLong?esc(displaySummary.slice(0,280))+'&hellip;':esc(displaySummary))+'</p>'+
+      (isLong?'<button class="summary-expand-btn" onclick="toggleSummary(this)">Read more &#x25BC;</button>':'')+
+      '</div>';
+  }
+  var threadBadges='';
+  if(a.threads&&a.threads.length){
+    var shown=a.threads.slice(0,3);var extra=a.threads.length-shown.length;
+    threadBadges='<div class="card-thread-badges">'+
+      shown.map(function(s){return'<a class="thread-badge-pill" href="storylines.html#'+esc(s)+'">'+esc(s.replace(/-/g,' '))+'</a>';}).join('')+
+      (extra>0?'<span class="thread-badge-more">+'+extra+' more</span>':'')+
+      '</div>';
+  }
+  el.innerHTML=
+    '<div class="card-stripe cat-stripe-'+esc(a.category||'general')+'"></div>'+
+    '<div class="card-body2">'+
+    '<div class="card-top-row">'+
+    '<span class="card-source-chip">'+esc(a.source)+'</span>'+
+    '<span class="card-cat-pill cat-'+esc(a.category||'general')+'">'+esc(CAT_TEXT[a.category]||'General')+'</span>'+    getCountryBadge(a.country,a.region)+    '<span class="card-date">'+fmtDate(a.publishedAt)+'</span>'+
+    '</div>'+
+    '<h2 class="card-title2">'+esc(a.title)+'</h2>'+
+    summaryHtml+
+    threadBadges+
+    '<div class="card-bottom-row">'+
+    '<div class="card-badges">'+
+    '<button class="bias-badge '+biasClass(a.biasDirection)+' bias-clickable" data-article=\''+esc(bd)+'\'>'+esc(BIAS_SHORT[a.biasDirection]||'?')+'</button>'+
+    '<span class="quality-badge '+qualityClass(a.qualityScore)+'" title="'+esc(a.qualityNote)+'">Q'+esc(String(a.qualityScore||'?'))+'</span>'+
+    (a.biasLevel==='high'?'<span class="bias-high-flag">&#x26A0; High Bias</span>':'')+
+    '<span class="read-time-badge">'+readTime(a.summary)+'m</span>'+
+    '</div>'+
+    '<div class="card-actions2">'+
+    '<a class="read-article-btn" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer" data-id="'+esc(a._id)+'">Read article &#x2197;</a>'+
+    '<button class="save-btn'+(saved?' saved':'')+'" data-id="'+esc(a._id)+'" title="'+(saved?'Saved':'Save for later')+'">'+(saved?'&#x2665;':'&#x2661;')+'</button>'+
+    '<button class="share-btn" data-url="'+esc(a.articleUrl)+'" data-title="'+esc(a.title)+'" title="Share">&#x2317;</button>'+
+    '</div></div>'+
+    (a.biasLevel==='high'?'<details class="bias-panel-inline"><summary class="bias-panel-trigger">&#x1F9E0; Media Literacy Note</summary><div class="bias-panel-body"><p>'+esc(a.biasNote||'This article may reflect a particular editorial perspective.')+'</p><p class="bias-panel-tip">&#x1F4A1; Check other sources to get a fuller picture of this story.</p></div></details>':'')+
+    '</div>';
+  el.querySelector('.read-article-btn').addEventListener('click',function(){trackEngage(a._id,'view');});
+  return el;
+}
+
+function toggleSummary(btn){
+  var p=btn.previousElementSibling;
+  var full=p.dataset.full;
+  if(btn.textContent.includes('more')){p.textContent=full;btn.textContent='Show less \u25B2';}
+  else{p.textContent=full.slice(0,280)+'\u2026';btn.textContent='Read more \u25BC';}
+}
+
+async function trackEngage(id,action){
+  if(!id)return;
+  try{await fetch('/api/news/global/'+id+'/engage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:action}),credentials:'same-origin'});}catch(e){}
+}
+
+function handleSave(btn){
+  var id=btn.dataset.id;var saved=getSaved();
+  if(saved.has(id)){saved.delete(id);btn.innerHTML='&#x2661;';btn.classList.remove('saved');btn.title='Save for later';}
+  else{saved.add(id);btn.innerHTML='&#x2665;';btn.classList.add('saved');btn.title='Saved';trackEngage(id,'save');}
+  setSaved(saved);
+}
+
+function handleShare(btn){
+  var url=btn.dataset.url,title=btn.dataset.title;
+  if(navigator.share){navigator.share({title:title,url:url}).catch(function(){});}
+  else if(navigator.clipboard){navigator.clipboard.writeText(url).then(function(){var o=btn.innerHTML;btn.innerHTML='&#x2713;';setTimeout(function(){btn.innerHTML=o;},1500);});}
+  var card=btn.closest('.article-card');if(card)trackEngage(card.dataset.id,'share');
+}
+
+var pendingBiasDir='';
+function attachBiasModal(el){
+  el.addEventListener('click',function(e){
+    e.stopPropagation();
+    var raw;try{raw=JSON.parse(el.dataset.article||'{}');}catch(e){raw={};}
+    openBiasModal(raw);
+  });
+}
+
+function openBiasModal(a){
+  pendingBiasDir=OPPOSITE[a.biasDirection]||'';
+  var dir=a.biasDirection||'unknown',level=a.biasLevel||'medium';
+  var levelMsg={low:'This article appears relatively balanced. The source presents information without significant editorial slant.',medium:'This article shows moderate editorial framing. The core facts may be accurate, but word choices and source selection can subtly guide your interpretation.',high:'This article has a strong editorial lean. It may use emotionally charged language, selectively quote sources, or omit perspectives from the other side.'};
+  var levelLabel={low:'Low',medium:'Moderate',high:'High'};
+  document.getElementById('biasModalContent').innerHTML=
+    '<div class="modal-article-ref"><strong>'+esc(a.title||'Article')+'</strong><span class="modal-source">  '+esc(a.source||'Unknown')+'</span></div>'+
+    '<div class="modal-bias-indicator">'+
+    '<div class="modal-bias-bar"><span class="modal-bar-end">Left</span>'+
+    '<div class="modal-bar-track"><div class="modal-bar-dot dot-'+esc(dir)+'"></div></div>'+
+    '<span class="modal-bar-end">Right</span></div>'+
+    '<div class="modal-bias-labels">'+
+    '<span class="modal-bias-label">Direction: <strong>'+esc(BIAS_LABELS[dir]||dir)+'</strong></span>'+
+    '<span class="modal-bias-label level-'+esc(level)+'">Level: <strong>'+esc(levelLabel[level]||level)+'</strong></span>'+
+    '</div></div>'+
+    '<p class="modal-explain">'+esc(levelMsg[level])+'</p>'+
+    (a.biasNote?'<div class="modal-ai-note"><span class="modal-ai-badge">&#x1F916; AI Analysis</span><p>'+esc(a.biasNote)+'</p></div>':'')+
+    '<div class="modal-tip-box"><strong>What does this mean?</strong><ul>'+
+    '<li>Bias does not mean the article is wrong  it means it has a perspective.</li>'+
+    '<li>Consuming only one perspective can create an echo chamber.</li>'+
+    '<li>Checking multiple sources helps you form an independent view.</li>'+
+    '</ul></div>';
+  document.getElementById('biasModalAction').style.display=pendingBiasDir?'block':'none';
+  document.getElementById('biasModalOverlay').style.display='flex';
+  document.body.style.overflow='hidden';
+}
+function closeBiasModal(){document.getElementById('biasModalOverlay').style.display='none';document.body.style.overflow='';}
+document.getElementById('biasModalClose').addEventListener('click',closeBiasModal);
+document.getElementById('biasModalOverlay').addEventListener('click',function(e){if(e.target===e.currentTarget)closeBiasModal();});
+document.getElementById('biasModalAction').addEventListener('click',function(){
+  closeBiasModal();
+  if(pendingBiasDir){currentBiasFilter=pendingBiasDir==='center'?'center':'';currentPage=1;document.getElementById('biasFilterGlobal').value=currentBiasFilter;loadArticles();}
+});
+
+async function loadStats(){
+  try{
+    var res=await fetch('/api/news/stats');var data=await res.json();
+    var breakdown=data.biasBreakdown||[];var bar=document.getElementById('biasSpectrumBar');
+    var dirs=['left','center-left','center','center-right','right','unknown'];
+    var map={};var total=0;
+    breakdown.forEach(function(b){map[b._id]=b.count;total+=b.count;});
+    if(!total){bar.innerHTML='<p class="spectrum-loading">No data yet.</p>';return;}
+    var shortMap={'left':'Left','center-left':'Ctr-L','center':'Center','center-right':'Ctr-R','right':'Right','unknown':'Unk'};
+    bar.innerHTML='<div class="spectrum-track">'+dirs.map(function(d){
+      var pct=total?((map[d]||0)/total*100).toFixed(1):0;
+      return pct>0?'<div class="spectrum-seg spectrum-'+d.replace(/-/g,'') +'" style="width:'+pct+'%" title="'+shortMap[d]+': '+pct+'%"></div>':'';
+    }).join('')+'</div>'+
+    '<div class="spectrum-legend">'+dirs.filter(function(d){return map[d];}).map(function(d){
+      return '<span class="legend-item"><span class="legend-dot spectrum-'+d.replace(/-/g,'')+'"></span>'+shortMap[d]+' ('+((map[d]||0)/total*100).toFixed(0)+'%)</span>';
+    }).join('')+'</div>';
+  }catch(e){}
+}
+
+async function loadRecommended(){
+  try{
+    var res=await fetch('/api/news/recommended',{credentials:'same-origin'});
+    if(!res.ok)return;var data=await res.json();var list=document.getElementById('recList');var articles=data.articles||[];
+    if(!articles.length){list.innerHTML='<p class="widget-caption">Keep reading to get recommendations!</p>';return;}
+    list.innerHTML=articles.map(function(a){
+      return '<a class="rec-item" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer" data-id="'+esc(a._id)+'">'+
+        '<span class="rec-cat-dot cat-dot-'+esc(a.category||'general')+'"></span>'+
+        '<span class="rec-title">'+esc(a.title.slice(0,70))+(a.title.length>70?'&hellip;':'')+'</span>'+
+        '<span class="rec-source-sm">'+esc(a.source)+'</span></a>';
+    }).join('');
+    list.querySelectorAll('.rec-item').forEach(function(el){
+      el.addEventListener('click',function(){trackEngage(el.dataset.id,'view');});
+    });
+  }catch(e){}
+}
+
+async function loadMySources(){
+  try{
+    var res=await fetch('/api/news/sources',{credentials:'same-origin'});var data=await res.json();
+    var ul=document.getElementById('miniSourceList');var arr=Array.isArray(data)?data:[];
+    if(!arr.length){ul.innerHTML='<li class="user-list-loading">No feeds added yet.</li>';return;}
+    ul.innerHTML=arr.map(function(s){
+      return '<li class="source-item"><div class="source-item-info"><span class="source-item-label">'+esc(s.label)+'</span><span class="source-item-meta">'+esc(new URL(s.url).hostname)+'</span></div><button class="source-delete-btn" data-id="'+esc(s._id)+'">&times;</button></li>';
+    }).join('');
+    ul.querySelectorAll('.source-delete-btn').forEach(function(btn){
+      btn.addEventListener('click',async function(){
+        if(!confirm('Remove this feed?'))return;
+        await fetch('/api/news/sources/'+btn.dataset.id,{method:'DELETE',credentials:'same-origin'});
+        loadMySources();
+      });
+    });
+  }catch(e){}
+}
+
+document.getElementById('miniAddForm').addEventListener('submit',async function(e){
+  e.preventDefault();
+  var url=document.getElementById('miniUrl').value.trim();
+  var label=document.getElementById('miniLabel').value.trim();
+  var al=document.getElementById('miniAlert');al.textContent='';
+  try{
+    var res=await fetch('/api/news/sources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url,label:label}),credentials:'same-origin'});
+    var data=await res.json();
+    if(!res.ok){al.textContent=data.error;al.style.color='var(--error)';return;}
+    document.getElementById('miniUrl').value='';document.getElementById('miniLabel').value='';
+    al.textContent='Feed added!';al.style.color='var(--success)';loadMySources();
+  }catch(e){al.textContent='Network error.';al.style.color='var(--error)';}
+});
+
+document.getElementById('rssRefreshBtn').addEventListener('click',async function(){
+  var btn=document.getElementById('rssRefreshBtn'),text=document.getElementById('rssRefreshText');
+  btn.disabled=true;text.textContent='Fetching\u2026';
+  try{await fetch('/api/news/fetch',{method:'POST',credentials:'same-origin'});text.textContent='Done!';setTimeout(function(){text.textContent='Fetch \u0026 Analyze';btn.disabled=false;},2000);}
+  catch(e){text.textContent='Error.';btn.disabled=false;}
+});
+
+document.querySelectorAll('.cat-tab').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.cat-tab').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');currentCategory=btn.dataset.cat||'';currentPage=1;loadArticles();
+  });
+});
+
+document.querySelectorAll('.sort-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.sort-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');currentSort=btn.dataset.sort;currentPage=1;loadArticles();
+  });
+});
+
+document.getElementById('biasFilterGlobal').addEventListener('change',function(e){
+  currentBiasFilter=e.target.value;currentPage=1;loadArticles();
+});
+document.getElementById('regionFilter').addEventListener('change',function(e){
+  currentCountry=e.target.value;currentPage=1;loadArticles();
+});
+
+document.getElementById('loadMoreBtn').addEventListener('click',function(){
+  if(currentPage<totalPages){currentPage++;loadArticles(true);}
+});
+
+document.getElementById('closeBanner').addEventListener('click',function(){
+  document.getElementById('biasBanner').style.display='none';
+  localStorage.setItem('pulse_banner_dismissed','1');
+});
+if(localStorage.getItem('pulse_banner_dismissed'))document.getElementById('biasBanner').style.display='none';
+
+document.getElementById('navOverlay').addEventListener('click',function(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('navOverlay').classList.remove('visible');
+});
+document.getElementById('sidebarClose').addEventListener('click',function(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('navOverlay').classList.remove('visible');
+});
+
+async function loadStorylines(){
+  try{
+    var res=await fetch('/api/threads?limit=8');
+    var data=await res.json();
+    var threads=data.threads||[];
+    var strip=document.getElementById('storylinesStrip');
+    var section=document.getElementById('storylinesSection');
+    if(!threads.length){section.style.display='none';return;}
+    strip.innerHTML=threads.map(function(t){
+      return '<a class="storyline-card" href="storylines.html#'+esc(t.slug)+'" style="border-color:'+esc(t.color||'#6366f1')+'">'+
+        '<span class="storyline-icon">'+esc(t.icon||'\uD83D\uDDD2')+'</span>'+
+        '<span class="storyline-name">'+esc(t.name)+'</span>'+
+        '<span class="storyline-count">'+esc(String(t.articleCount24h||0))+'</span>'+
+        '</a>';
+    }).join('');
+  }catch(e){console.error('loadStorylines:',e);}
+}
+
+async function loadKeyFigures(){
+  try{
+    var res=await fetch('/api/threads/people');
+    var data=await res.json();
+    var people=data.people||[];
+    var list=document.getElementById('keyFiguresList');
+    var widget=document.getElementById('keyFiguresWidget');
+    if(!people.length)return;
+    widget.style.display='block';
+    list.innerHTML=people.slice(0,8).map(function(p){
+      return '<div class="key-figure-item">'+
+        '<div class="key-figure-name">'+esc(p.canonicalName)+'</div>'+
+        '<div class="key-figure-meta">'+esc(p.role||'')+(p.country?' \u00b7 '+esc(p.country):'')+'</div>'+
+        '<div class="key-figure-count">'+esc(String(p.articleCount7d||0))+' articles</div>'+
+        '</div>';
+    }).join('');
+  }catch(e){console.error('loadKeyFigures:',e);}
+}
+
+async function loadMarketPulse(){
+  try{
+    var res=await fetch('/api/threads/market-tags');
+    var data=await res.json();
+    var tags=data.tags||[];
+    var strip=document.getElementById('marketPulseStrip');
+    var section=document.getElementById('marketPulseSection');
+    if(!tags.length)return;
+    section.style.display='block';
+    strip.innerHTML=tags.map(function(t){
+      var label=MARKET_TAG_LABELS[t.tag]||t.tag;
+      return '<a class="market-tag-badge" href="market-signals.html?tag='+esc(t.tag)+'">'+esc(label)+'<span class="market-tag-count">'+esc(String(t.count||0))+'</span></a>';
+    }).join('');
+  }catch(e){console.error('loadMarketPulse:',e);}
+}
+
+async function init(){
+  currentUser=await checkAuth();
+  renderNav(currentUser);
+  if(currentUser){
+    document.getElementById('recommendedWidget').style.display='block';
+    document.getElementById('mySourcesWidget').style.display='block';
+    document.getElementById('guestCta').style.display='none';
+    document.getElementById('forYouBtn').style.display='inline-flex';
+    document.getElementById('keyFiguresWidget').style.display='block';
+    loadRecommended();loadMySources();loadKeyFigures();
+  }
+  Promise.all([loadHero(),loadTrending(),loadArticles(),loadStats(),loadStorylines(),loadMarketPulse()]);
+}
+init();
+</script>
+</body>
+</html>

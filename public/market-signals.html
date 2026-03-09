@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseReader — Market Signals</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .signals-main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+    .signals-header { margin-bottom: 1.25rem; }
+    .signals-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin: 0 0 0.3rem;
+    }
+    .signals-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      margin: 0 0 1.25rem;
+    }
+    .signals-filter-section { margin-bottom: 1rem; }
+    .signals-tag-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0.75rem; }
+    button.market-tag-badge { font-family: inherit; cursor: pointer; }
+
+    /* Sort row */
+    .signal-sort-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .view-storylines-link {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: #2563EB;
+      text-decoration: none;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #BFDBFE;
+      border-radius: 20px;
+      background: #EFF6FF;
+      transition: background 0.12s;
+    }
+    .view-storylines-link:hover { background: #DBEAFE; }
+
+    /* Overview grid (no tag selected) */
+    .signals-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .signals-overview-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1rem;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.12s;
+      text-align: left;
+      font-family: inherit;
+    }
+    .signals-overview-card:hover {
+      box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+      transform: translateY(-2px);
+    }
+    .signals-overview-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+    .signals-overview-name {
+      font-weight: 700;
+      font-size: 0.9375rem;
+      margin-bottom: 0.3rem;
+      color: var(--text-primary);
+    }
+    .signals-overview-count { font-size: 0.78rem; color: var(--text-secondary); }
+
+    /* Empty / loading states */
+    .signals-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-secondary);
+    }
+    .grid-loading {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--text-secondary);
+    }
+    .grid-empty {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--text-secondary);
+    }
+
+    /* Load more row */
+    .load-more-row {
+      display: flex;
+      justify-content: center;
+      padding: 1.25rem 0;
+    }
+
+    @media (max-width: 640px) {
+      .signals-overview-grid { grid-template-columns: 1fr 1fr; }
+      .article-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="pulse-body">
+
+  <!-- NAV BAR -->
+  <header class="pulse-nav" id="pulseNav">
+    <div class="pulse-nav-inner">
+      <div class="pulse-nav-left">
+        <div class="pulse-logo-group">
+          <a href="news.html" class="pulse-logo" style="text-decoration:none;color:inherit">PulseReader</a>
+          <span class="pulse-tagline">Global Political Intelligence</span>
+        </div>
+      </div>
+      <div class="pulse-nav-right" id="navRight"></div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="signals-main">
+
+    <div class="signals-header">
+      <h1 class="signals-title">&#x1F4C8; Market Signals</h1>
+      <p class="signals-subtitle">Track economic forces shaping geopolitics &mdash; filtered live from global coverage.</p>
+    </div>
+
+    <!-- TAG FILTER STRIP -->
+    <div class="signals-filter-section">
+      <div class="signals-tag-strip" id="tagStrip">
+        <span style="color:var(--text-secondary);font-size:0.85rem">Loading signals&hellip;</span>
+      </div>
+      <div id="activeFilterBanner" class="active-filter-banner" style="display:none"></div>
+    </div>
+
+    <!-- SORT ROW (visible when a tag is selected) -->
+    <div class="signal-sort-row" id="sortRow" style="display:none">
+      <button class="sort-btn active" data-sort="latest">&#x1F552; Latest</button>
+      <button class="sort-btn" data-sort="trending">&#x1F525; Trending</button>
+      <button class="sort-btn" data-sort="quality">&#x2B50; Quality</button>
+      <a class="view-storylines-link" id="viewStorylinesLink" href="storylines.html">View related storylines &#x2192;</a>
+    </div>
+
+    <!-- OVERVIEW GRID (default: no tag selected) -->
+    <div id="overviewGrid" class="signals-overview-grid" style="display:none"></div>
+
+    <!-- ARTICLE GRID -->
+    <div id="articleGrid" class="article-grid"></div>
+
+    <!-- LOAD MORE -->
+    <div class="load-more-row" id="loadMoreRow" style="display:none">
+      <button class="btn" id="loadMoreBtn">Load more articles</button>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div id="emptyState" class="signals-empty" style="display:none">
+      <p>No articles found for this signal yet. More stories arrive every 15&nbsp;minutes.</p>
+    </div>
+
+  </main>
+
+  <!-- BIAS MODAL -->
+  <div class="bias-modal-overlay" id="biasModalOverlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="biasModalTitle">
+    <div class="bias-modal">
+      <button class="bias-modal-close" id="biasModalClose" aria-label="Close">&times;</button>
+      <h2 class="bias-modal-title" id="biasModalTitle">Media Literacy Report</h2>
+      <div id="biasModalContent"></div>
+      <div class="bias-modal-footer">
+        <p>Reading diverse sources helps you form a more complete picture of the news.</p>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────────────────────────
+var VALID_TAGS=new Set(['oil-markets','defense-spending','sanctions-trade','currency-wars','commodity-prices','central-bank-policy','tech-regulation','debt-crisis']);
+var MARKET_TAG_LABELS={
+  'oil-markets':'\uD83D\uDEE2\uFE0F Oil Markets',
+  'defense-spending':'\uD83D\uDEE1\uFE0F Defense',
+  'sanctions-trade':'\uD83D\uDEAB Sanctions',
+  'currency-wars':'\uD83D\uDCB1 Currency',
+  'commodity-prices':'\uD83D\uDCE6 Commodities',
+  'central-bank-policy':'\uD83C\uDFE6 Central Banks',
+  'tech-regulation':'\uD83D\uDCBB Tech Policy',
+  'debt-crisis':'\uD83D\uDCC9 Debt Crisis'
+};
+var CAT_TEXT={politics:'Politics',world:'World',conflict:'War / Conflict',diplomacy:'Diplomacy',economy:'Economy',general:'General'};
+var BIAS_SHORT={'left':'Left','center-left':'Ctr-Left','center':'Center','center-right':'Ctr-Right','right':'Right','unknown':'?'};
+var BIAS_LABELS={'left':'\u2B05 Left','center-left':'\u2199 Ctr-Left','center':'\u26AB Center','center-right':'\u2198 Ctr-Right','right':'\u27A1 Right','unknown':'? Unknown'};
+var FLAG_MAP={
+  'US':{emoji:'\uD83C\uDDFA\uD83C\uDDF8',name:'United States'},'GB':{emoji:'\uD83C\uDDEC\uD83C\uDDE7',name:'United Kingdom'},
+  'UK':{emoji:'\uD83C\uDDEC\uD83C\uDDE7',name:'United Kingdom'},'RU':{emoji:'\uD83C\uDDF7\uD83C\uDDFA',name:'Russia'},
+  'CN':{emoji:'\uD83C\uDDE8\uD83C\uDDF3',name:'China'},'DE':{emoji:'\uD83C\uDDE9\uD83C\uDDEA',name:'Germany'},
+  'FR':{emoji:'\uD83C\uDDEB\uD83C\uDDF7',name:'France'},'JP':{emoji:'\uD83C\uDDEF\uD83C\uDDF5',name:'Japan'},
+  'IN':{emoji:'\uD83C\uDDEE\uD83C\uDDF3',name:'India'},'BR':{emoji:'\uD83C\uDDE7\uD83C\uDDF7',name:'Brazil'},
+  'CA':{emoji:'\uD83C\uDDE8\uD83C\uDDE6',name:'Canada'},'AU':{emoji:'\uD83C\uDDE6\uD83C\uDDFA',name:'Australia'},
+  'KR':{emoji:'\uD83C\uDDF0\uD83C\uDDF7',name:'South Korea'},'MX':{emoji:'\uD83C\uDDF2\uD83C\uDDFD',name:'Mexico'},
+  'IT':{emoji:'\uD83C\uDDEE\uD83C\uDDF9',name:'Italy'},'ES':{emoji:'\uD83C\uDDEA\uD83C\uDDF8',name:'Spain'},
+  'TR':{emoji:'\uD83C\uDDF9\uD83C\uDDF7',name:'Turkey'},'SA':{emoji:'\uD83C\uDDF8\uD83C\uDDE6',name:'Saudi Arabia'},
+  'UA':{emoji:'\uD83C\uDDFA\uD83C\uDDE6',name:'Ukraine'},'IL':{emoji:'\uD83C\uDDEE\uD83C\uDDF1',name:'Israel'},
+  'PS':{emoji:'\uD83C\uDDF5\uD83C\uDDF8',name:'Palestine'},'IR':{emoji:'\uD83C\uDDEE\uD83C\uDDF7',name:'Iran'},
+  'PK':{emoji:'\uD83C\uDDF5\uD83C\uDDF0',name:'Pakistan'},'AF':{emoji:'\uD83C\uDDE6\uD83C\uDDEB',name:'Afghanistan'},
+  'SY':{emoji:'\uD83C\uDDF8\uD83C\uDDFE',name:'Syria'},'IQ':{emoji:'\uD83C\uDDEE\uD83C\uDDF6',name:'Iraq'},
+  'LB':{emoji:'\uD83C\uDDF1\uD83C\uDDE7',name:'Lebanon'},'EG':{emoji:'\uD83C\uDDEA\uD83C\uDDEC',name:'Egypt'},
+  'ZA':{emoji:'\uD83C\uDDFF\uD83C\uDDE6',name:'South Africa'},'NG':{emoji:'\uD83C\uDDF3\uD83C\uDDEC',name:'Nigeria'},
+  'ET':{emoji:'\uD83C\uDDEA\uD83C\uDDF9',name:'Ethiopia'},'PL':{emoji:'\uD83C\uDDF5\uD83C\uDDF1',name:'Poland'},
+  'SE':{emoji:'\uD83C\uDDF8\uD83C\uDDEA',name:'Sweden'},'NL':{emoji:'\uD83C\uDDF3\uD83C\uDDF1',name:'Netherlands'},
+  'CH':{emoji:'\uD83C\uDDE8\uD83C\uDDED',name:'Switzerland'},'UA':{emoji:'\uD83C\uDDFA\uD83C\uDDE6',name:'Ukraine'},
+  'KP':{emoji:'\uD83C\uDDF0\uD83C\uDDF5',name:'North Korea'},'TW':{emoji:'\uD83C\uDDF9\uD83C\uDDFC',name:'Taiwan'},
+  'SG':{emoji:'\uD83C\uDDF8\uD83C\uDDEC',name:'Singapore'},'AE':{emoji:'\uD83C\uDDE6\uD83C\uDDEA',name:'UAE'},
+  'QA':{emoji:'\uD83C\uDDF6\uD83C\uDDE6',name:'Qatar'},'YE':{emoji:'\uD83C\uDDFE\uD83C\uDDEA',name:'Yemen'},
+  'SD':{emoji:'\uD83C\uDDF8\uD83C\uDDE9',name:'Sudan'},'SO':{emoji:'\uD83C\uDDF8\uD83C\uDDF4',name:'Somalia'},
+  'LY':{emoji:'\uD83C\uDDF1\uD83C\uDDFE',name:'Libya'},'MM':{emoji:'\uD83C\uDDF2\uD83C\uDDF2',name:'Myanmar'},
+  'VE':{emoji:'\uD83C\uDDFB\uD83C\uDDEA',name:'Venezuela'},'CO':{emoji:'\uD83C\uDDE8\uD83C\uDDF4',name:'Colombia'},
+  'AR':{emoji:'\uD83C\uDDE6\uD83C\uDDF7',name:'Argentina'},'CL':{emoji:'\uD83C\uDDE8\uD83C\uDDF1',name:'Chile'},
+  'GLOBAL':{emoji:'\uD83C\uDF10',name:'Global'}
+};
+var REGION_EMOJI={
+  'Americas':'\uD83C\uDF0E','Europe':'\uD83C\uDF0D','Asia':'\uD83C\uDF0F',
+  'MiddleEast':'\uD83D\uDD4C','Africa':'\uD83C\uDF0D','Oceania':'\uD83C\uDF0F','Global':'\uD83C\uDF10'
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+var currentTag='';
+var currentSort='latest';
+var allTagData=[];
+var currentPage=1;
+var isLoading=false;
+var PAGE_SIZE=20;
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function fmtDate(iso){
+  if(!iso)return'';
+  var d=new Date(iso);
+  if(isNaN(d))return'';
+  var diff=Date.now()-d;
+  if(diff<3600000)return Math.round(diff/60000)+'m ago';
+  if(diff<86400000)return Math.round(diff/3600000)+'h ago';
+  return d.toLocaleDateString([],{month:'short',day:'numeric'});
+}
+function readTime(t){return Math.max(1,Math.round((String(t||'')).split(/\s+/).filter(Boolean).length/200));}
+function biasClass(d){if(!d||d==='unknown')return'bias-unknown';if(d==='center')return'bias-center';return d.includes('left')?'bias-left':'bias-right';}
+function qualityClass(q){return q>=8?'q-high':q>=5?'q-mid':'q-low';}
+function getCountryBadge(country,region){
+  if(!country&&!region)return'';
+  var info=FLAG_MAP[String(country||'').toUpperCase()];
+  if(info)return'<span class="country-badge" title="'+esc(info.name)+'">'+info.emoji+' '+esc(info.name)+'</span>';
+  var reg=region||'Global';
+  return'<span class="country-badge" title="'+esc(reg)+'">'+(REGION_EMOJI[reg]||'\uD83C\uDF10')+' '+esc(reg)+'</span>';
+}
+
+// ── Auth / Nav ────────────────────────────────────────────────────────────────
+async function checkAuth(){
+  try{var r=await fetch('/api/dashboard',{credentials:'same-origin'});if(r.ok)return await r.json();}
+  catch(e){}return null;
+}
+function renderNav(user){
+  var el=document.getElementById('navRight');
+  if(user){
+    el.innerHTML='<span class="nav-username">'+esc(user.username||'You')+'</span><a href="dashboard.html" class="nav-link-btn">Dashboard</a><a href="news.html" class="nav-link-btn">News Feed</a><button class="nav-link-btn" id="navLogout">Sign out</button>';
+    document.getElementById('navLogout').addEventListener('click',async function(){await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});window.location.reload();});
+  }else{
+    el.innerHTML='<a href="news.html" class="nav-link-btn">News Feed</a><a href="login.html" class="nav-link-btn">Log in</a><a href="register.html" class="nav-cta-btn">Sign up free</a>';
+  }
+}
+
+// ── Tag Strip ────────────────────────────────────────────────────────────────
+async function loadTagStrip(){
+  try{
+    var res=await fetch('/api/threads/market-tags');
+    var data=await res.json();
+    allTagData=data.tags||[];
+    renderTagStrip();
+  }catch(e){
+    document.getElementById('tagStrip').innerHTML='<span style="color:var(--text-secondary)">Failed to load signals.</span>';
+  }
+}
+
+function renderTagStrip(){
+  var strip=document.getElementById('tagStrip');
+  if(!allTagData.length){strip.innerHTML='<span style="color:var(--text-secondary)">No signals available yet.</span>';return;}
+  strip.innerHTML=allTagData.map(function(t){
+    var label=MARKET_TAG_LABELS[t.tag]||t.tag;
+    var active=t.tag===currentTag;
+    return '<button class="market-tag-badge'+(active?' active':'')+'" data-tag="'+esc(t.tag)+'">'+
+      esc(label)+'<span class="market-tag-count">'+esc(String(t.count||0))+'</span></button>';
+  }).join('');
+  strip.querySelectorAll('.market-tag-badge').forEach(function(btn){
+    btn.addEventListener('click',function(){selectTag(btn.dataset.tag);});
+  });
+}
+
+// ── Tag Selection ────────────────────────────────────────────────────────────
+function selectTag(tag){
+  if(!VALID_TAGS.has(tag))return;
+  currentTag=tag;
+  currentPage=1;
+  var url=new URL(window.location);
+  url.searchParams.set('tag',tag);
+  history.pushState({tag:tag},'',url);
+  renderTagStrip();
+  showFilterBanner(tag);
+  document.getElementById('overviewGrid').style.display='none';
+  document.getElementById('sortRow').style.display='flex';
+  document.getElementById('viewStorylinesLink').href='storylines.html?market='+encodeURIComponent(tag);
+  loadArticlesForTag(tag);
+}
+
+function clearTag(){
+  currentTag='';
+  currentPage=1;
+  var url=new URL(window.location);
+  url.searchParams.delete('tag');
+  history.pushState({},'',url);
+  renderTagStrip();
+  document.getElementById('activeFilterBanner').style.display='none';
+  document.getElementById('sortRow').style.display='none';
+  document.getElementById('articleGrid').innerHTML='';
+  document.getElementById('loadMoreRow').style.display='none';
+  document.getElementById('emptyState').style.display='none';
+  showOverview();
+}
+
+function showFilterBanner(tag){
+  var label=MARKET_TAG_LABELS[tag]||tag;
+  var banner=document.getElementById('activeFilterBanner');
+  banner.style.display='flex';
+  banner.innerHTML='<span>Showing: <strong>'+esc(label)+'</strong></span>'+
+    '<button class="active-filter-clear" id="clearFilterBtn">\u2715 Show all signals</button>';
+  document.getElementById('clearFilterBtn').addEventListener('click',clearTag);
+}
+
+// ── Overview (no tag selected) ────────────────────────────────────────────────
+function showOverview(){
+  var grid=document.getElementById('overviewGrid');
+  grid.style.display='grid';
+  if(!allTagData.length){grid.innerHTML='<p style="color:var(--text-secondary)">Loading&hellip;</p>';return;}
+  grid.innerHTML=allTagData.map(function(t){
+    var label=MARKET_TAG_LABELS[t.tag]||t.tag;
+    var parts=label.split(' ');
+    var icon=parts[0];
+    var name=parts.slice(1).join(' ');
+    return '<button class="signals-overview-card" data-tag="'+esc(t.tag)+'">'+
+      '<div class="signals-overview-icon">'+esc(icon)+'</div>'+
+      '<div class="signals-overview-name">'+esc(name)+'</div>'+
+      '<div class="signals-overview-count">'+esc(String(t.count||0))+' articles (7\u00a0days)</div>'+
+      '</button>';
+  }).join('');
+  grid.querySelectorAll('.signals-overview-card').forEach(function(card){
+    card.addEventListener('click',function(){selectTag(card.dataset.tag);});
+  });
+}
+
+// ── Article Loading ────────────────────────────────────────────────────────────
+async function loadArticlesForTag(tag){
+  if(isLoading)return;
+  isLoading=true;
+  var grid=document.getElementById('articleGrid');
+  if(currentPage===1){
+    grid.innerHTML='<div class="grid-loading"><span>Loading articles&hellip;</span></div>';
+    document.getElementById('loadMoreRow').style.display='none';
+    document.getElementById('emptyState').style.display='none';
+  }
+  try{
+    var params=new URLSearchParams({sort:currentSort,page:currentPage,limit:PAGE_SIZE});
+    var res=await fetch('/api/threads/market-tags/'+encodeURIComponent(tag)+'/articles?'+params);
+    var data=await res.json();
+    var articles=data.articles||[];
+    if(currentPage===1)grid.innerHTML='';
+    if(!articles.length&&currentPage===1){
+      document.getElementById('emptyState').style.display='block';
+      return;
+    }
+    articles.forEach(function(a){grid.appendChild(buildCard(a));});
+    grid.querySelectorAll('.bias-clickable:not([data-ev])').forEach(function(el){
+      el.setAttribute('data-ev','1');attachBiasModal(el);
+    });
+    document.getElementById('loadMoreRow').style.display=(articles.length>=PAGE_SIZE)?'flex':'none';
+  }catch(e){
+    if(currentPage===1)grid.innerHTML='<div class="grid-empty"><p>Failed to load articles. Please refresh.</p></div>';
+  }finally{
+    isLoading=false;
+  }
+}
+
+// ── Article Card ──────────────────────────────────────────────────────────────
+function buildCard(a){
+  var el=document.createElement('article');
+  el.className='article-card';
+  el.dataset.id=a._id;
+  var bd=JSON.stringify({_id:a._id,biasDirection:a.biasDirection,biasLevel:a.biasLevel,biasNote:a.biasNote,title:a.title,source:a.source});
+  var displaySummary=a.expandedSummary||a.summary||'';
+  var isLong=displaySummary.length>280;
+  var summaryHtml='';
+  if(displaySummary){
+    summaryHtml='<div class="card-summary-wrap">'+
+      (a.expandedSummary?'<span class="ai-summary-badge">&#x1F916; AI Briefing</span>':'')+
+      '<p class="card-summary2" data-full="'+esc(displaySummary)+'">'+(isLong?esc(displaySummary.slice(0,280))+'&hellip;':esc(displaySummary))+'</p>'+
+      (isLong?'<button class="summary-expand-btn" onclick="toggleSummary(this)">Read more &#x25BC;</button>':'')+
+      '</div>';
+  }
+  // Market tag chips (other tags on this article)
+  var tagBadges='';
+  if(a.marketTags&&a.marketTags.length){
+    var shown=a.marketTags.filter(function(t){return t!==currentTag;}).slice(0,2);
+    if(currentTag)shown=[currentTag].concat(shown);
+    tagBadges='<div class="card-thread-badges">'+
+      shown.slice(0,3).map(function(t){
+        return '<button class="thread-badge-pill" style="background:#F0FDF4;color:#15803D;border-color:#BBF7D0;font-family:inherit" data-tag="'+esc(t)+'">'+
+          esc(MARKET_TAG_LABELS[t]||t.replace(/-/g,' '))+'</button>';
+      }).join('')+
+      '</div>';
+  }
+  el.innerHTML=
+    '<div class="card-stripe cat-stripe-'+esc(a.category||'general')+'"></div>'+
+    '<div class="card-body2">'+
+    '<div class="card-top-row">'+
+    '<span class="card-source-chip">'+esc(a.source)+'</span>'+
+    '<span class="card-cat-pill cat-'+esc(a.category||'general')+'">'+esc(CAT_TEXT[a.category]||'General')+'</span>'+
+    getCountryBadge(a.country,a.region)+
+    '<span class="card-date">'+fmtDate(a.publishedAt)+'</span>'+
+    '</div>'+
+    '<h2 class="card-title2">'+esc(a.title)+'</h2>'+
+    summaryHtml+
+    tagBadges+
+    '<div class="card-bottom-row">'+
+    '<div class="card-badges">'+
+    '<button class="bias-badge '+biasClass(a.biasDirection)+' bias-clickable" data-article=\''+esc(bd)+'\'>'+esc(BIAS_SHORT[a.biasDirection]||'?')+'</button>'+
+    '<span class="quality-badge '+qualityClass(a.qualityScore)+'" title="'+esc(a.qualityNote||'')+'">Q'+esc(String(a.qualityScore||'?'))+'</span>'+
+    (a.biasLevel==='high'?'<span class="bias-high-flag">&#x26A0; High Bias</span>':'')+
+    '<span class="read-time-badge">'+readTime(a.summary)+'m</span>'+
+    '</div>'+
+    '<div class="card-actions2">'+
+    '<a class="read-article-btn" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer">Read article &#x2197;</a>'+
+    '</div></div>'+
+    (a.biasLevel==='high'?'<details class="bias-panel-inline"><summary class="bias-panel-trigger">&#x1F9E0; Media Literacy Note</summary><div class="bias-panel-body"><p>'+esc(a.biasNote||'This article may reflect a particular editorial perspective.')+'</p><p class="bias-panel-tip">&#x1F4A1; Check other sources to get a fuller picture of this story.</p></div></details>':'')+
+    '</div>';
+  // Market tag badge click → filter
+  el.querySelectorAll('.thread-badge-pill[data-tag]').forEach(function(btn){
+    btn.addEventListener('click',function(){selectTag(btn.dataset.tag);});
+  });
+  return el;
+}
+
+function toggleSummary(btn){
+  var p=btn.previousElementSibling;
+  var full=p.dataset.full;
+  if(btn.textContent.includes('more')){p.textContent=full;btn.textContent='Show less \u25B2';}
+  else{p.textContent=full.slice(0,280)+'\u2026';btn.textContent='Read more \u25BC';}
+}
+
+// ── Bias Modal ────────────────────────────────────────────────────────────────
+function attachBiasModal(el){
+  el.addEventListener('click',function(){
+    try{
+      var data=JSON.parse(el.dataset.article||'{}');
+      document.getElementById('biasModalContent').innerHTML=
+        '<p><strong>'+esc(data.title||'')+'</strong></p>'+
+        '<p>Source: '+esc(data.source||'')+'</p>'+
+        '<p>Lean: '+esc(BIAS_LABELS[data.biasDirection]||'Unknown')+'</p>'+
+        '<p>Bias intensity: '+esc(data.biasLevel||'unknown')+'</p>'+
+        (data.biasNote?'<p>'+esc(data.biasNote)+'</p>':'');
+      document.getElementById('biasModalOverlay').style.display='flex';
+    }catch(e){}
+  });
+}
+document.getElementById('biasModalClose').addEventListener('click',function(){
+  document.getElementById('biasModalOverlay').style.display='none';
+});
+document.getElementById('biasModalOverlay').addEventListener('click',function(e){
+  if(e.target===this)this.style.display='none';
+});
+
+// ── Sort buttons ──────────────────────────────────────────────────────────────
+document.querySelectorAll('#sortRow .sort-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('#sortRow .sort-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    currentSort=btn.dataset.sort;
+    currentPage=1;
+    if(currentTag)loadArticlesForTag(currentTag);
+  });
+});
+
+// ── Load more ──────────────────────────────────────────────────────────────────
+document.getElementById('loadMoreBtn').addEventListener('click',function(){
+  if(currentTag&&!isLoading){currentPage++;loadArticlesForTag(currentTag);}
+});
+
+// ── Browser back/forward ──────────────────────────────────────────────────────
+window.addEventListener('popstate',function(){
+  var params=new URLSearchParams(window.location.search);
+  var tagParam=params.get('tag');
+  if(tagParam&&VALID_TAGS.has(tagParam)){
+    currentTag=tagParam;
+    renderTagStrip();
+    showFilterBanner(tagParam);
+    document.getElementById('overviewGrid').style.display='none';
+    document.getElementById('sortRow').style.display='flex';
+    document.getElementById('viewStorylinesLink').href='storylines.html?market='+encodeURIComponent(tagParam);
+    currentPage=1;
+    loadArticlesForTag(tagParam);
+  }else{
+    clearTag();
+  }
+});
+
+// ── Auto-refresh every 15 minutes ────────────────────────────────────────────
+setInterval(function(){
+  loadTagStrip().then(function(){
+    if(currentTag){renderTagStrip();loadArticlesForTag(currentTag);}
+    else showOverview();
+  });
+},15*60*1000);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init(){
+  var user=await checkAuth();
+  renderNav(user);
+  // Read tag from URL
+  var params=new URLSearchParams(window.location.search);
+  var tagParam=params.get('tag');
+  if(tagParam&&VALID_TAGS.has(tagParam)){
+    currentTag=tagParam;
+  }
+  await loadTagStrip();
+  if(currentTag){
+    showFilterBanner(currentTag);
+    document.getElementById('sortRow').style.display='flex';
+    document.getElementById('viewStorylinesLink').href='storylines.html?market='+encodeURIComponent(currentTag);
+    document.getElementById('overviewGrid').style.display='none';
+    loadArticlesForTag(currentTag);
+  }else{
+    showOverview();
+  }
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulseReader — Storylines</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    button.market-tag-badge { font-family: inherit; cursor: pointer; }
+    .market-tag-badge.active { background: #dbeafe; border-color: #6366f1; color: #1d4ed8; }
+    .market-tag-badge.active .market-tag-count { background: #6366f1; }
+    .active-filter-banner {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.5rem 1.25rem; background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.3); border-radius: 8px;
+      margin-bottom: 0.75rem; font-size: 0.875rem;
+    }
+    .active-filter-clear {
+      margin-left: auto; background: transparent;
+      border: 1px solid rgba(99,102,241,0.4); color: inherit;
+      cursor: pointer; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem;
+    }
+    .active-filter-clear:hover { background: rgba(99,102,241,0.15); }
+  </style>
+</head>
+<body class="pulse-body">
+
+  <!-- NAV BAR -->
+  <header class="pulse-nav" id="pulseNav">
+    <div class="pulse-nav-inner">
+      <div class="pulse-nav-left">
+        <div class="pulse-logo-group">
+          <a href="news.html" class="pulse-logo" style="text-decoration:none;color:inherit">PulseReader</a>
+          <span class="pulse-tagline">Global Political Intelligence</span>
+        </div>
+      </div>
+      <div class="pulse-nav-right" id="navRight"></div>
+    </div>
+  </header>
+
+  <!-- MARKET SIGNALS BANNER -->
+  <section class="market-pulse-section" id="marketPulseSection" style="display:none">
+    <div class="market-pulse-label">📈 Market Signals</div>
+    <div class="market-pulse-strip" id="marketPulseStrip"></div>
+  </section>
+
+  <!-- MAIN CONTENT -->
+  <main class="storylines-main">
+    <div class="storylines-page-header">
+      <h1 class="storylines-page-title">🗳️ Ongoing Storylines</h1>
+      <p class="storylines-page-subtitle">Track developing crises, conflicts, and political events as they unfold.</p>
+      <!-- Region filter tabs -->
+      <div class="storylines-region-tabs" id="regionTabs">
+        <button class="region-tab active" data-region="">All Regions</button>
+        <button class="region-tab" data-region="Americas">🌎 Americas</button>
+        <button class="region-tab" data-region="Europe">🌍 Europe</button>
+        <button class="region-tab" data-region="MiddleEast">🕌 Middle East</button>
+        <button class="region-tab" data-region="Asia">🌏 Asia</button>
+        <button class="region-tab" data-region="Africa">🌍 Africa</button>
+        <button class="region-tab" data-region="Global">🌐 Global</button>
+      </div>
+    </div>
+
+    <div id="activeFilterBanner" class="active-filter-banner" style="display:none"></div>
+    <div class="storylines-grid" id="storylinesGrid">
+      <div class="grid-loading"><span>Loading storylines…</span></div>
+    </div>
+  </main>
+
+  <!-- THREAD DETAIL OVERLAY -->
+  <div class="thread-overlay-backdrop" id="threadOverlayBackdrop" style="display:none">
+    <div class="thread-overlay" id="threadOverlay">
+      <button class="thread-overlay-close" id="threadOverlayClose" aria-label="Close">&times;</button>
+      <div class="thread-overlay-inner" id="threadOverlayInner">
+        <div class="grid-loading">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+  var currentUser=null;
+  var currentRegion='';
+  var currentMarketTag='';
+  var allThreads=[];
+
+  var FLAG_MAP={
+    'US':'\uD83C\uDDFA\uD83C\uDDF8','GB':'\uD83C\uDDEC\uD83C\uDDE7','UK':'\uD83C\uDDEC\uD83C\uDDE7',
+    'RU':'\uD83C\uDDF7\uD83C\uDDFA','CN':'\uD83C\uDDE8\uD83C\uDDF3','UA':'\uD83C\uDDFA\uD83C\uDDE6',
+    'IL':'\uD83C\uDDEE\uD83C\uDDF1','IR':'\uD83C\uDDEE\uD83C\uDDF7','PS':'\uD83C\uDDF5\uD83C\uDDF8',
+    'KP':'\uD83C\uDDF0\uD83C\uDDF5','SD':'\uD83C\uDDF8\uD83C\uDDE9','CD':'\uD83C\uDDE8\uD83C\uDDE9',
+    'TW':'\uD83C\uDDF9\uD83C\uDDFC','VE':'\uD83C\uDDFB\uD83C\uDDEA','MM':'\uD83C\uDDF2\uD83C\uDDF2',
+    'SA':'\uD83C\uDDF8\uD83C\uDDE6','IN':'\uD83C\uDDEE\uD83C\uDDF3','PK':'\uD83C\uDDF5\uD83C\uDDF0',
+    'GLOBAL':'\uD83C\uDF10'
+  };
+
+  var BIAS_SHORT={'left':'Left','center-left':'Ctr-Left','center':'Center','center-right':'Ctr-Right','right':'Right','unknown':'Unknown'};
+
+  var MARKET_TAG_LABELS={'oil-markets':'\uD83D\uDEE2\uFE0F Oil Markets','defense-spending':'\uD83D\uDEE1\uFE0F Defense','sanctions-trade':'\uD83D\uDEAB Sanctions','currency-wars':'\uD83D\uDCB1 Currency','commodity-prices':'\uD83D\uDCE6 Commodities','central-bank-policy':'\uD83C\uDFE6 Central Banks','tech-regulation':'\uD83D\uDCBB Tech Policy','debt-crisis':'\uD83D\uDCC9 Debt Crisis'};
+
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function fmtDate(iso){if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';var diff=Date.now()-d;if(diff<3600000)return Math.round(diff/60000)+'m ago';if(diff<86400000)return Math.round(diff/3600000)+'h ago';return d.toLocaleDateString([],{month:'short',day:'numeric'});}
+  function biasClass(d){if(!d||d==='unknown')return'bias-unknown';if(d==='center')return'bias-center';return d.includes('left')?'bias-left':'bias-right';}
+  function qualityClass(q){return q>=8?'q-high':q>=5?'q-mid':'q-low';}
+
+  async function checkAuth(){try{var r=await fetch('/api/dashboard',{credentials:'same-origin'});if(r.ok)return await r.json();}catch(e){}return null;}
+
+  function renderNav(user){
+    var el=document.getElementById('navRight');
+    if(user){
+      el.innerHTML='<span class="nav-username">'+esc(user.username||'You')+'</span><a href="dashboard.html" class="nav-link-btn">Dashboard</a><a href="news.html" class="nav-link-btn">News Feed</a><button class="nav-link-btn" id="navLogout">Sign out</button>';
+      document.getElementById('navLogout').addEventListener('click',async function(){await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin'});window.location.reload();});
+    }else{
+      el.innerHTML='<a href="news.html" class="nav-link-btn">News Feed</a><a href="login.html" class="nav-link-btn">Log in</a><a href="register.html" class="nav-cta-btn">Sign up free</a>';
+    }
+  }
+
+  async function loadMarketPulse(){
+    try{
+      var res=await fetch('/api/threads/market-tags');
+      var data=await res.json();
+      var tags=data.tags||[];
+      var strip=document.getElementById('marketPulseStrip');
+      var section=document.getElementById('marketPulseSection');
+      if(!tags.length)return;
+      section.style.display='block';
+      strip.innerHTML=tags.map(function(t){
+        var label=MARKET_TAG_LABELS[t.tag]||t.tag;
+        var isActive=currentMarketTag===t.tag;
+        return '<button class="market-tag-badge'+(isActive?' active':'')+'" data-tag="'+esc(t.tag)+'">'+esc(label)+'<span class="market-tag-count">'+esc(String(t.count||0))+'</span></button>';
+      }).join('');
+      strip.querySelectorAll('.market-tag-badge').forEach(function(btn){
+        btn.addEventListener('click',function(){setMarketFilter(btn.dataset.tag);});
+      });
+    }catch(e){}
+  }
+
+  function setMarketFilter(tag){
+    if(tag===currentMarketTag){clearMarketFilter();return;}
+    currentMarketTag=tag;
+    history.pushState(null,'',window.location.pathname+'?market='+encodeURIComponent(tag));
+    document.querySelectorAll('.market-tag-badge').forEach(function(btn){
+      btn.classList.toggle('active',btn.dataset.tag===tag);
+    });
+    applyFiltersAndRender();
+  }
+
+  function clearMarketFilter(){
+    currentMarketTag='';
+    history.pushState(null,'',window.location.pathname);
+    document.querySelectorAll('.market-tag-badge').forEach(function(btn){btn.classList.remove('active');});
+    var banner=document.getElementById('activeFilterBanner');
+    if(banner)banner.style.display='none';
+    applyFiltersAndRender();
+  }
+
+  async function applyFiltersAndRender(){
+    var banner=document.getElementById('activeFilterBanner');
+    var grid=document.getElementById('storylinesGrid');
+    if(currentMarketTag){
+      try{
+        var res=await fetch('/api/threads/market-tags/'+encodeURIComponent(currentMarketTag)+'/threads');
+        var data=await res.json();
+        var threads=data.threads||[];
+        var filtered=currentRegion?threads.filter(function(t){return t.region===currentRegion;}):threads;
+        var label=MARKET_TAG_LABELS[currentMarketTag]||currentMarketTag;
+        if(banner){
+          banner.style.display='';
+          banner.innerHTML='<span>Filtered by: <strong>'+esc(label)+'</strong></span><button class="active-filter-clear" onclick="clearMarketFilter()">&#x2715; Clear</button>';
+        }
+        if(!filtered.length){grid.innerHTML='<div class="grid-empty"><p>No storylines match this market signal.</p></div>';return;}
+        renderGrid(filtered);
+      }catch(e){
+        grid.innerHTML='<div class="grid-empty"><p>No storylines match this market signal.</p></div>';
+      }
+    }else{
+      if(banner)banner.style.display='none';
+      renderGrid();
+    }
+  }
+
+  async function loadThreads(){
+    try{
+      var url='/api/threads?limit=100';
+      var res=await fetch(url);
+      var data=await res.json();
+      allThreads=data.threads||[];
+      updateRegionTabs();
+      applyFiltersAndRender();
+    }catch(e){
+      document.getElementById('storylinesGrid').innerHTML='<div class="grid-empty"><p>Failed to load storylines.</p></div>';
+    }
+  }
+
+  // Show only region tabs that have at least one active thread with articles.
+  function updateRegionTabs(){
+    var activeRegions=new Set(allThreads.map(function(t){return t.region||'Global';}));
+    document.querySelectorAll('.region-tab[data-region]').forEach(function(tab){
+      var r=tab.dataset.region;
+      if(!r){return;} // 'All Regions' tab is always visible
+      tab.style.display=activeRegions.has(r)?'':'none';
+    });
+    // If the currently selected region has no threads, reset to All
+    if(currentRegion&&!activeRegions.has(currentRegion)){
+      currentRegion='';
+      document.querySelectorAll('.region-tab').forEach(function(b){b.classList.remove('active');});
+      var allBtn=document.querySelector('.region-tab[data-region=""]');
+      if(allBtn)allBtn.classList.add('active');
+    }
+  }
+
+  async function loadFollowed(){
+    if(!currentUser)return new Set();
+    try{
+      var res=await fetch('/api/threads/followed',{credentials:'same-origin'});
+      var data=await res.json();
+      return new Set((data.threads||[]).map(function(t){return t.threadSlug;}));
+    }catch(e){return new Set();}
+  }
+
+  var followedSlugs=new Set();
+
+  function renderGrid(threads){
+    var filtered=(threads!==undefined)?threads:(currentRegion?allThreads.filter(function(t){return t.region===currentRegion;}):allThreads);
+    var grid=document.getElementById('storylinesGrid');
+    if(!filtered.length){grid.innerHTML='<div class="grid-empty"><p>No storylines in this region yet.</p></div>';return;}
+    grid.innerHTML=filtered.map(function(t){
+      var isFollowed=followedSlugs.has(t.slug);
+      var heat=Math.min(5,Math.round((t.heatScore||0)/20));
+      var heatDots='';
+      for(var i=0;i<5;i++)heatDots+='<span class="heat-dot'+(i<heat?' heat-dot-on':'')+'"></span>';
+      return '<div class="thread-card" data-slug="'+esc(t.slug)+'" style="--thread-color:'+esc(t.color||'#6366f1')+'">'+
+        '<div class="thread-card-stripe" style="background:'+esc(t.color||'#6366f1')+'"></div>'+
+        '<div class="thread-card-body">'+
+        '<div class="thread-card-top">'+
+        '<span class="thread-card-icon">'+esc(t.icon||'\uD83D\uDDD2')+'</span>'+
+        '<div class="thread-card-meta">'+
+        '<div class="thread-card-name">'+esc(t.name)+'</div>'+
+        '<div class="thread-card-region">'+esc(t.region||'Global')+'</div>'+
+        '</div>'+
+        '<button class="thread-follow-btn'+(isFollowed?' followed':'')+'\" data-slug="'+esc(t.slug)+'" onclick="toggleFollow(event,this)">'+
+        (isFollowed?'✓ Following':'+ Follow')+'</button>'+
+        '</div>'+
+        '<p class="thread-card-desc">'+esc((t.description||'').slice(0,120))+'</p>'+
+        '<div class="thread-card-stats">'+
+        '<span class="thread-stat">'+esc(String(t.articleCount24h||0))+' today</span>'+
+        '<span class="thread-stat">'+esc(String(t.articleCount7d||0))+' this week</span>'+
+        '<div class="heat-bar">'+heatDots+'</div>'+
+        '</div>'+
+        '</div></div>';
+    }).join('');
+    grid.querySelectorAll('.thread-card').forEach(function(el){
+      el.addEventListener('click',function(e){
+        if(e.target.classList.contains('thread-follow-btn')||e.target.closest('.thread-follow-btn'))return;
+        openThreadOverlay(el.dataset.slug);
+      });
+    });
+  }
+
+  async function toggleFollow(e,btn){
+    e.stopPropagation();
+    if(!currentUser){window.location.href='login.html';return;}
+    var slug=btn.dataset.slug;
+    var isFollowed=followedSlugs.has(slug);
+    try{
+      var method=isFollowed?'DELETE':'POST';
+      var res=await fetch('/api/threads/'+slug+'/follow',{method:method,credentials:'same-origin'});
+      if(!res.ok)return;
+      if(isFollowed){followedSlugs.delete(slug);btn.textContent='+ Follow';btn.classList.remove('followed');}
+      else{followedSlugs.add(slug);btn.textContent='\u2713 Following';btn.classList.add('followed');}
+    }catch(e){console.error('toggleFollow:',e);}
+  }
+
+  var overlayPage=1;var overlaySlug='';var overlaySort='latest';
+
+  async function openThreadOverlay(slug){
+    overlaySlug=slug;overlayPage=1;
+    var backdrop=document.getElementById('threadOverlayBackdrop');
+    backdrop.style.display='flex';
+    document.body.style.overflow='hidden';
+    document.getElementById('threadOverlayInner').innerHTML='<div class="grid-loading">Loading…</div>';
+    window.location.hash=slug;
+    await renderOverlay();
+  }
+
+  async function renderOverlay(){
+    try{
+      var res=await fetch('/api/threads/'+overlaySlug);
+      var t=await res.json();
+      var artRes=await fetch('/api/threads/'+overlaySlug+'/articles?sort='+overlaySort+'&page='+overlayPage+'&limit=10');
+      var artData=await artRes.json();
+      var articles=artData.articles||[];
+      var pages=artData.pages||1;
+      var isFollowed=followedSlugs.has(t.slug);
+
+      var biasBar='';
+      if(t.biasBreakdown&&t.biasBreakdown.length){
+        var total=t.biasBreakdown.reduce(function(s,b){return s+b.count;},0);
+        biasBar='<div class="overlay-bias-title">Bias breakdown</div><div class="spectrum-track">';
+        var dirs=['left','center-left','center','center-right','right','unknown'];
+        var map={};t.biasBreakdown.forEach(function(b){map[b._id]=b.count;});
+        dirs.forEach(function(d){var pct=total?((map[d]||0)/total*100).toFixed(1):0;if(pct>0)biasBar+='<div class="spectrum-seg spectrum-'+d.replace(/-/g,'')+'" style="width:'+pct+'%" title="'+d+': '+pct+'%"></div>';});
+        biasBar+='</div>';
+      }
+
+      var articlesHtml=articles.length?articles.map(function(a){
+        return '<a class="overlay-article-item" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer">'+
+          '<div class="overlay-article-source">'+esc(a.source)+'</div>'+
+          '<div class="overlay-article-title">'+esc(a.title)+'</div>'+
+          '<div class="overlay-article-meta">'+
+          '<span class="'+'bias-badge '+biasClass(a.biasDirection)+'">'+esc(BIAS_SHORT[a.biasDirection]||'?')+'</span>'+
+          '<span class="quality-badge '+qualityClass(a.qualityScore)+'">Q'+esc(String(a.qualityScore||'?'))+'</span>'+
+          '<span class="overlay-article-date">'+fmtDate(a.publishedAt)+'</span>'+
+          '</div>'+
+          (a.expandedSummary||a.summary?'<p class="overlay-article-summary">'+esc((a.expandedSummary||a.summary).slice(0,180))+'&hellip;</p>':'')+
+          '</a>';
+      }).join(''):'<p class="grid-empty">No articles yet for this storyline.</p>';
+
+      var keyPeopleHtml='';
+      if(t.keyPeople&&t.keyPeople.length){
+        keyPeopleHtml='<div class="overlay-section-title">Key Figures</div><div class="overlay-people-list">'+
+          t.keyPeople.map(function(p){return '<span class="overlay-person-chip">'+esc(p.name)+'</span>';}).join('')+
+          '</div>';
+      }
+
+      var marketTagsHtml='';
+      if(t.marketTags&&t.marketTags.length){
+        marketTagsHtml='<div class="overlay-section-title">Market Signals</div><div class="overlay-market-tags">'+
+          t.marketTags.map(function(m){return '<span class="market-tag-badge">'+esc(MARKET_TAG_LABELS[m._id]||m._id)+'</span>';}).join('')+
+          '</div>';
+      }
+
+      document.getElementById('threadOverlayInner').innerHTML=
+        '<div class="overlay-header" style="border-color:'+esc(t.color||'#6366f1')+'">'+
+        '<div class="overlay-header-left">'+
+        '<span class="overlay-icon">'+esc(t.icon||'\uD83D\uDDD2')+'</span>'+
+        '<div>'+
+        '<h2 class="overlay-title">'+esc(t.name)+'</h2>'+
+        '<div class="overlay-region">'+esc(t.region||'Global')+'</div>'+
+        '</div>'+
+        '</div>'+
+        '<div class="overlay-header-right">'+
+        '<span class="overlay-stat">'+esc(String(t.articleCount24h||0))+' today</span>'+
+        '<span class="overlay-stat">'+esc(String(t.articleCount7d||0))+' this week</span>'+
+        '<button class="thread-follow-btn'+(isFollowed?' followed':'')+'\" data-slug="'+esc(t.slug)+'" id="overlayFollowBtn" onclick="toggleFollowOverlay(this)">'+
+        (isFollowed?'\u2713 Following':'+ Follow')+'</button>'+
+        '</div></div>'+
+        (t.description?'<p class="overlay-description">'+esc(t.description)+'</p>':'')+
+        biasBar+
+        keyPeopleHtml+
+        marketTagsHtml+
+        '<div class="overlay-context-section" id="overlayContext">'+
+        '<button class="overlay-context-btn" onclick="loadContext()">🧠 Load AI Context Briefing</button>'+
+        '</div>'+
+        '<div class="overlay-articles-header">'+
+        '<div class="overlay-section-title">Articles</div>'+
+        '<div class="overlay-sort-btns">'+
+        '<button class="overlay-sort-btn'+(overlaySort==='latest'?' active':'')+'\" onclick="setOverlaySort(\'latest\',this)">Latest</button>'+
+        '<button class="overlay-sort-btn'+(overlaySort==='trending'?' active':'')+'\" onclick="setOverlaySort(\'trending\',this)">Trending</button>'+
+        '<button class="overlay-sort-btn'+(overlaySort==='quality'?' active':'')+'\" onclick="setOverlaySort(\'quality\',this)">Quality</button>'+
+        '</div></div>'+
+        '<div class="overlay-articles-list" id="overlayArticleList">'+articlesHtml+'</div>'+
+        (overlayPage<pages?'<button class="overlay-load-more" onclick="loadMoreOverlay()">Load more</button>':'');
+    }catch(e){
+      document.getElementById('threadOverlayInner').innerHTML='<p>Failed to load storyline.</p>';
+    }
+  }
+
+  async function toggleFollowOverlay(btn){
+    if(!currentUser){window.location.href='login.html';return;}
+    var slug=btn.dataset.slug;
+    var isFollowed=followedSlugs.has(slug);
+    try{
+      var method=isFollowed?'DELETE':'POST';
+      var res=await fetch('/api/threads/'+slug+'/follow',{method:method,credentials:'same-origin'});
+      if(!res.ok)return;
+      if(isFollowed){followedSlugs.delete(slug);btn.textContent='+ Follow';btn.classList.remove('followed');}
+      else{followedSlugs.add(slug);btn.textContent='\u2713 Following';btn.classList.add('followed');}
+      // Also update the grid card button
+      var gridBtn=document.querySelector('.thread-card[data-slug="'+slug+'"] .thread-follow-btn');
+      if(gridBtn){gridBtn.textContent=btn.textContent;gridBtn.className=btn.className;}
+    }catch(e){}
+  }
+
+  async function loadContext(){
+    var el=document.getElementById('overlayContext');
+    el.innerHTML='<div class="grid-loading">Generating briefing with AI…</div>';
+    try{
+      var res=await fetch('/api/threads/'+overlaySlug+'/context',{credentials:'same-origin'});
+      var data=await res.json();
+      el.innerHTML='<div class="overlay-context-box">'+
+        '<div class="overlay-section-title">🧠 AI Context Briefing</div>'+
+        '<p class="overlay-context-text">'+esc(data.briefing||'No briefing available.')+'</p>'+
+        '</div>';
+    }catch(e){el.innerHTML='<p>Failed to load briefing.</p>';}
+  }
+
+  function setOverlaySort(sort,btn){
+    overlaySort=sort;overlayPage=1;
+    document.querySelectorAll('.overlay-sort-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    renderOverlay();
+  }
+
+  async function loadMoreOverlay(){
+    overlayPage++;
+    try{
+      var res=await fetch('/api/threads/'+overlaySlug+'/articles?sort='+overlaySort+'&page='+overlayPage+'&limit=10');
+      var data=await res.json();
+      var articles=data.articles||[];
+      var pages=data.pages||1;
+      var list=document.getElementById('overlayArticleList');
+      var moreBtn=document.querySelector('.overlay-load-more');
+      if(moreBtn)moreBtn.remove();
+      list.insertAdjacentHTML('beforeend',articles.map(function(a){
+        return '<a class="overlay-article-item" href="'+esc(a.articleUrl)+'" target="_blank" rel="noopener noreferrer">'+
+          '<div class="overlay-article-source">'+esc(a.source)+'</div>'+
+          '<div class="overlay-article-title">'+esc(a.title)+'</div>'+
+          '<div class="overlay-article-meta">'+
+          '<span class="bias-badge '+biasClass(a.biasDirection)+'">'+esc(BIAS_SHORT[a.biasDirection]||'?')+'</span>'+
+          '<span class="quality-badge '+qualityClass(a.qualityScore)+'">Q'+esc(String(a.qualityScore||'?'))+'</span>'+
+          '<span class="overlay-article-date">'+fmtDate(a.publishedAt)+'</span>'+
+          '</div>'+
+          (a.expandedSummary||a.summary?'<p class="overlay-article-summary">'+esc((a.expandedSummary||a.summary).slice(0,180))+'&hellip;</p>':'')+
+          '</a>';
+      }).join(''));
+      if(overlayPage<pages)list.insertAdjacentHTML('afterend','<button class="overlay-load-more" onclick="loadMoreOverlay()">Load more</button>');
+    }catch(e){}
+  }
+
+  function closeOverlay(){
+    document.getElementById('threadOverlayBackdrop').style.display='none';
+    document.body.style.overflow='';
+    history.replaceState(null,'',window.location.pathname+window.location.search);
+  }
+
+  document.getElementById('threadOverlayClose').addEventListener('click',closeOverlay);
+  document.getElementById('threadOverlayBackdrop').addEventListener('click',function(e){if(e.target===e.currentTarget)closeOverlay();});
+
+  document.querySelectorAll('.region-tab').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      document.querySelectorAll('.region-tab').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      currentRegion=btn.dataset.region;
+      applyFiltersAndRender();
+    });
+  });
+
+  async function init(){
+    currentUser=await checkAuth();
+    renderNav(currentUser);
+    followedSlugs=await loadFollowed();
+    await loadThreads();
+    loadMarketPulse();
+    // Check URL hash for deep-link to a thread
+    var hash=window.location.hash.replace('#','');
+    if(hash)openThreadOverlay(hash);
+    // Check ?market= query param
+    var params=new URLSearchParams(window.location.search);
+    var mkt=params.get('market');
+    if(mkt){
+      setMarketFilter(mkt);
+      var section=document.getElementById('marketPulseSection');
+      if(section)section.scrollIntoView({behavior:'smooth'});
+    }
+    // Auto-refresh every 15 minutes to pick up new articles and auto-spawned threads
+    setInterval(async function(){
+      if(document.getElementById('threadOverlayBackdrop').style.display==='flex')return; // skip while overlay open
+      await loadThreads();
+      await loadMarketPulse();
+      applyFiltersAndRender();
+    }, 15 * 60 * 1000);
+  }
+
+  init();
+  </script>
+</body>
+</html>

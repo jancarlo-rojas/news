@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="chat-body">
+
+  <div class="nav-overlay" id="navOverlay"></div>
+
+  <nav class="sidebar" id="sidebar" aria-hidden="true">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Menu</span>
+      <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&times;</button>
+    </div>
+    <ul class="sidebar-links">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="chat.html" class="active">Chat</a></li>
+      <li><a href="news.html">News</a></li>
+    </ul>
+    <button class="sidebar-logout" id="sidebarLogout">Sign out</button>
+  </nav>
+
+  <!-- ===== Chat Layout ===== -->
+  <div class="chat-layout" id="chatLayout" style="display:none;">
+
+    <!-- ── Left panel ── -->
+    <aside class="user-list-panel">
+
+      <!-- Top bar with embedded hamburger -->
+      <div class="panel-topbar">
+        <button class="panel-hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="panel-topbar-title">Chat</span>
+      </div>
+
+      <!-- Channels -->
+      <div class="section-label">Channels</div>
+      <ul class="user-list" id="channelList">
+        <li class="user-item channel-item" data-room="__global__" id="globalItem">
+          <span class="channel-hash">#</span>general
+        </li>
+      </ul>
+
+      <!-- Direct Messages -->
+      <div class="section-label">Direct Messages</div>
+      <ul class="user-list" id="userList">
+        <li class="user-list-loading">Loading…</li>
+      </ul>
+
+    </aside>
+
+    <!-- ── Right panel ── -->
+    <section class="conversation-panel">
+
+      <div class="conversation-header" id="conversationHeader">
+        <span id="chatWithLabel"># general</span>
+      </div>
+
+      <div class="message-thread" id="messageThread">
+        <p class="thread-placeholder">Loading messages…</p>
+      </div>
+
+      <form class="message-form" id="messageForm">
+        <input
+          type="text"
+          id="messageInput"
+          class="message-input"
+          placeholder="Message # general"
+          autocomplete="off"
+          maxlength="2000"
+        />
+        <button type="submit" class="message-send-btn">Send</button>
+      </form>
+
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ─── Constants & State ────────────────────────────────────────────────────
+    const GLOBAL_ROOM    = '__global__';
+    let currentUser      = null;
+    let currentRoom      = GLOBAL_ROOM;   // partner username OR '__global__'
+    let currentRoomId    = GLOBAL_ROOM;   // actual socket room id
+    let socket           = null;
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    function dmRoomId(a, b) { return [a, b].sort().join('__'); }
+
+    function formatTime(iso) {
+      return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function appendMessage({ from, text, createdAt }) {
+      const thread  = document.getElementById('messageThread');
+      // Remove placeholder if present
+      const ph = thread.querySelector('.thread-placeholder');
+      if (ph) ph.remove();
+
+      const isSelf = from === currentUser;
+      const row    = document.createElement('div');
+      row.className = `msg-row ${isSelf ? 'msg-self' : 'msg-other'}`;
+      row.innerHTML = `
+        <div class="msg-bubble">
+          <span class="msg-text">${escapeHtml(text)}</span>
+          <span class="msg-meta">${escapeHtml(from)} · ${formatTime(createdAt)}</span>
+        </div>`;
+      thread.appendChild(row);
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    function setThreadContent(html) {
+      document.getElementById('messageThread').innerHTML = html;
+    }
+
+    // ─── Auth & Boot ─────────────────────────────────────────────────────────
+    async function init() {
+      try {
+        const res = await fetch('/api/dashboard', { credentials: 'same-origin' });
+        if (!res.ok) { window.location.href = '/login.html'; return; }
+        currentUser = (await res.json()).username;
+      } catch {
+        window.location.href = '/login.html'; return;
+      }
+
+      document.getElementById('chatLayout').style.display = 'flex';
+      connectSocket();
+      loadUsers();
+    }
+
+    // ─── Socket.IO ───────────────────────────────────────────────────────────
+    function connectSocket() {
+      socket = io({ withCredentials: true });
+
+      socket.on('connect_error', (err) => {
+        if (['Authentication required.', 'Invalid or expired session.'].includes(err.message)) {
+          window.location.href = '/login.html';
+        }
+      });
+
+      // On (re)connect: server auto-joined global already; re-join DM room if open
+      socket.on('connect', () => {
+        if (currentRoom !== GLOBAL_ROOM) {
+          socket.emit('join_room', { partner: currentRoom });
+        }
+      });
+
+      socket.on('receive_message', (msg) => {
+        // Only render if message belongs to the currently visible room
+        if (msg.roomId === currentRoomId) {
+          appendMessage(msg);
+        }
+      });
+    }
+
+    // ─── User List ───────────────────────────────────────────────────────────
+    async function loadUsers() {
+      try {
+        const res   = await fetch('/api/chat/users', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const users = await res.json();
+        renderUserList(users);
+      } catch (err) { console.error('Failed to load users:', err); }
+
+      // Always open # general by default
+      selectRoom(GLOBAL_ROOM);
+    }
+
+    function renderUserList(users) {
+      const ul = document.getElementById('userList');
+      ul.innerHTML = '';
+      if (!users.length) {
+        ul.innerHTML = '<li class="user-list-loading">No other users yet.</li>';
+        return;
+      }
+      users.forEach((username) => {
+        const li = document.createElement('li');
+        li.className   = 'user-item';
+        li.textContent = username;
+        li.dataset.room = username;
+        li.addEventListener('click', () => selectRoom(username));
+        ul.appendChild(li);
+      });
+    }
+
+    // ─── Room Selection ───────────────────────────────────────────────────────
+    async function selectRoom(room) {
+      if (currentRoom === room) return;
+      currentRoom   = room;
+      const isGlobal = room === GLOBAL_ROOM;
+      currentRoomId  = isGlobal ? GLOBAL_ROOM : dmRoomId(currentUser, room);
+
+      const label = isGlobal ? '# general' : room;
+      document.getElementById('chatWithLabel').textContent = label;
+      document.getElementById('messageInput').placeholder  = `Message ${label}`;
+
+      // Highlight sidebar item
+      document.querySelectorAll('.user-item').forEach((li) => {
+        li.classList.toggle('active', li.dataset.room === room);
+      });
+
+      // Join DM room on server (global joined automatically)
+      if (!isGlobal) socket.emit('join_room', { partner: room });
+
+      // Load history
+      setThreadContent('<p class="thread-placeholder">Loading…</p>');
+      try {
+        const url    = isGlobal ? '/api/chat/global' : `/api/chat/history/${encodeURIComponent(room)}`;
+        const res    = await fetch(url, { credentials: 'same-origin' });
+        if (!res.ok) { setThreadContent('<p class="thread-placeholder">Could not load messages.</p>'); return; }
+        const msgs   = await res.json();
+        const thread = document.getElementById('messageThread');
+        thread.innerHTML = '';
+        if (!msgs.length) {
+          thread.innerHTML = '<p class="thread-placeholder">No messages yet. Say hello!</p>';
+        } else {
+          msgs.forEach(appendMessage);
+        }
+      } catch { setThreadContent('<p class="thread-placeholder">Could not load messages.</p>'); }
+    }
+
+    // ─── Send Message ────────────────────────────────────────────────────────
+    document.getElementById('messageForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('messageInput');
+      const text  = input.value.trim();
+      if (!text || !socket) return;
+      socket.emit('send_message', { partner: currentRoom, text });
+      input.value = '';
+    });
+
+    // ─── Hamburger Nav ────────────────────────────────────────────────────────
+    const hamburger = document.getElementById('hamburger');
+    const sidebar   = document.getElementById('sidebar');
+    const overlay   = document.getElementById('navOverlay');
+
+    function openNav()  {
+      sidebar.classList.add('open'); overlay.classList.add('visible');
+      hamburger.setAttribute('aria-expanded', 'true');
+      sidebar.setAttribute('aria-hidden', 'false');
+    }
+    function closeNav() {
+      sidebar.classList.remove('open'); overlay.classList.remove('visible');
+      hamburger.setAttribute('aria-expanded', 'false');
+      sidebar.setAttribute('aria-hidden', 'true');
+    }
+
+    hamburger.addEventListener('click', openNav);
+    document.getElementById('sidebarClose').addEventListener('click', closeNav);
+    overlay.addEventListener('click', closeNav);
+    document.getElementById('sidebarLogout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      window.location.href = '/login.html';
+    });
+
+    // ─── Global channel item ──────────────────────────────────────────────────
+    document.getElementById('globalItem').addEventListener('click', () => selectRoom(GLOBAL_ROOM));
+
+    init();
+  </script>
+</body>
+</html>
+
+
+  <div class="nav-overlay" id="navOverlay"></div>
+
+  <nav class="sidebar" id="sidebar" aria-hidden="true">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Menu</span>
+      <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&times;</button>
+    </div>
+    <ul class="sidebar-links">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="chat.html" class="active">Chat</a></li>
+      <li><a href="news.html">News</a></li>
+    </ul>
+    <button class="sidebar-logout" id="sidebarLogout">Sign out</button>
+  </nav>
+
+  <!-- ===== Chat Layout ===== -->
+  <div class="chat-layout" id="chatLayout" style="display:none;">
+
+    <!-- Left: user list -->
+    <aside class="user-list-panel">
+      <div class="panel-header">
+        <span>Conversations</span>
+      </div>
+      <ul class="user-list" id="userList">
+        <li class="user-list-loading">Loading users…</li>
+      </ul>
+    </aside>
+
+    <!-- Right: conversation -->
+    <section class="conversation-panel">
+      <div class="conversation-header" id="conversationHeader">
+        <span id="chatWithLabel">Select a user to start chatting</span>
+      </div>
+
+      <div class="message-thread" id="messageThread">
+        <p class="thread-placeholder" id="threadPlaceholder">No conversation selected.</p>
+      </div>
+
+      <form class="message-form" id="messageForm" style="display:none;">
+        <input
+          type="text"
+          id="messageInput"
+          class="message-input"
+          placeholder="Type a message…"
+          autocomplete="off"
+          maxlength="2000"
+        />
+        <button type="submit" class="message-send-btn">Send</button>
+      </form>
+    </section>
+
+  </div>
+
+  <!-- Socket.IO client (served automatically by the server) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // ─── State ───────────────────────────────────────────────────────────────
+    let currentUser = null;
+    let currentPartner = null;
+    let socket = null;
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function appendMessage({ from, text, createdAt }) {
+      const thread = document.getElementById('messageThread');
+      const placeholder = document.getElementById('threadPlaceholder');
+      if (placeholder) placeholder.remove();
+
+      const isSelf = from === currentUser;
+      const row = document.createElement('div');
+      row.className = `msg-row ${isSelf ? 'msg-self' : 'msg-other'}`;
+
+      row.innerHTML = `
+        <div class="msg-bubble">
+          <span class="msg-text">${escapeHtml(text)}</span>
+          <span class="msg-meta">${escapeHtml(from)} · ${formatTime(createdAt)}</span>
+        </div>`;
+
+      thread.appendChild(row);
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    // Prevent XSS when injecting user content into the DOM
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // ─── Auth Check ──────────────────────────────────────────────────────────
+    async function init() {
+      try {
+        const res = await fetch('/api/dashboard', { credentials: 'same-origin' });
+        if (!res.ok) { window.location.href = '/login.html'; return; }
+        const data = await res.json();
+        currentUser = data.username;
+      } catch {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      document.getElementById('chatLayout').style.display = 'flex';
+      connectSocket();
+      loadUsers();
+    }
+
+    // ─── Socket.IO ───────────────────────────────────────────────────────────
+    function connectSocket() {
+      socket = io({ withCredentials: true });
+
+      socket.on('connect_error', (err) => {
+        console.error('Socket connect error:', err.message);
+        if (err.message === 'Authentication required.' || err.message === 'Invalid or expired session.') {
+          window.location.href = '/login.html';
+        }
+      });
+
+      socket.on('receive_message', (msg) => {
+        // Only render if the message belongs to the current open conversation
+        if (
+          currentPartner &&
+          (msg.from === currentPartner || msg.from === currentUser)
+        ) {
+          appendMessage(msg);
+        }
+      });
+    }
+
+    // ─── User List ───────────────────────────────────────────────────────────
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/chat/users', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const users = await res.json();
+        renderUserList(users);
+      } catch (err) {
+        console.error('Failed to load users:', err);
+      }
+    }
+
+    function renderUserList(users) {
+      const ul = document.getElementById('userList');
+      ul.innerHTML = '';
+
+      if (users.length === 0) {
+        ul.innerHTML = '<li class="user-list-loading">No other users yet.</li>';
+        return;
+      }
+
+      users.forEach((username) => {
+        const li = document.createElement('li');
+        li.className = 'user-item';
+        li.textContent = username;
+        li.setAttribute('data-username', username);
+        li.addEventListener('click', () => selectPartner(username));
+        ul.appendChild(li);
+      });
+    }
+
+    // ─── Conversation ────────────────────────────────────────────────────────
+    async function selectPartner(username) {
+      if (currentPartner === username) return;
+      currentPartner = username;
+
+      // Highlight selected user
+      document.querySelectorAll('.user-item').forEach((li) => {
+        li.classList.toggle('active', li.dataset.username === username);
+      });
+
+      document.getElementById('chatWithLabel').textContent = username;
+      document.getElementById('messageThread').innerHTML = '';
+      document.getElementById('messageForm').style.display = 'flex';
+
+      // Join the private room
+      socket.emit('join_room', { partner: username });
+
+      // Load history
+      try {
+        const res = await fetch(`/api/chat/history/${encodeURIComponent(username)}`, {
+          credentials: 'same-origin',
+        });
+        if (!res.ok) return;
+        const messages = await res.json();
+        // Reset placeholder state before rendering history
+        const thread = document.getElementById('messageThread');
+        thread.innerHTML = '';
+        if (messages.length === 0) {
+          thread.innerHTML = '<p class="thread-placeholder">No messages yet. Say hello!</p>';
+        } else {
+          messages.forEach(appendMessage);
+        }
+      } catch (err) {
+        console.error('Failed to load history:', err);
+      }
+    }
+
+    // ─── Send Message ────────────────────────────────────────────────────────
+    document.getElementById('messageForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !currentPartner || !socket) return;
+      socket.emit('send_message', { partner: currentPartner, text });
+      input.value = '';
+    });
+
+    // ─── Hamburger Nav ───────────────────────────────────────────────────────
+    const hamburger = document.getElementById('hamburger');
+    const sidebar   = document.getElementById('sidebar');
+    const overlay   = document.getElementById('navOverlay');
+
+    function openNav() {
+      sidebar.classList.add('open');
+      overlay.classList.add('visible');
+      hamburger.setAttribute('aria-expanded', 'true');
+      sidebar.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeNav() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('visible');
+      hamburger.setAttribute('aria-expanded', 'false');
+      sidebar.setAttribute('aria-hidden', 'true');
+    }
+
+    hamburger.addEventListener('click', openNav);
+    document.getElementById('sidebarClose').addEventListener('click', closeNav);
+    overlay.addEventListener('click', closeNav);
+
+    document.getElementById('sidebarLogout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      window.location.href = '/login.html';
+    });
+
+    // ─── Boot ────────────────────────────────────────────────────────────────
+    init();
+  </script>
+</body>
+</html>

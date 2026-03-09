@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dashboard-body">
+
+  <!-- ===== Hamburger Nav ===== -->
+  <button class="hamburger" id="hamburger" aria-label="Open menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="nav-overlay" id="navOverlay"></div>
+
+  <nav class="sidebar" id="sidebar" aria-hidden="true">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Menu</span>
+      <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&times;</button>
+    </div>
+    <ul class="sidebar-links">
+      <li><a href="dashboard.html" class="active">Dashboard</a></li>
+      <li><a href="chat.html">Chat</a></li>
+      <li><a href="news.html">News</a></li>
+    </ul>
+    <button class="sidebar-logout" id="sidebarLogout">Sign out</button>
+  </nav>
+
+  <div class="dashboard-wrapper">
+    <header class="dashboard-header">
+      <h1>Dashboard</h1>
+      <div class="header-actions">
+        <a href="chat.html" class="btn-outline">Chat</a>
+        <button class="btn-outline" id="logoutBtn">Sign out</button>
+      </div>
+    </header>
+
+    <div id="content" style="display:none;">
+      <div class="welcome-box">
+        <h2 id="welcomeMsg">Welcome back.</h2>
+        <p>You are authenticated and viewing a protected page.</p>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="label">Status</div>
+          <div class="value">Active</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Session</div>
+          <div class="value">Valid</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (async () => {
+      try {
+        const res = await fetch('/api/dashboard', { credentials: 'same-origin' });
+
+        if (!res.ok) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        const data = await res.json();
+        document.getElementById('welcomeMsg').textContent = `Welcome back, ${data.username}.`;
+        document.getElementById('content').style.display = 'block';
+      } catch (err) {
+        window.location.href = '/login.html';
+      }
+    })();
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      window.location.href = '/login.html';
+    });
+
+    // Hamburger nav
+    const hamburger = document.getElementById('hamburger');
+    const sidebar   = document.getElementById('sidebar');
+    const overlay   = document.getElementById('navOverlay');
+
+    function openNav() {
+      sidebar.classList.add('open');
+      overlay.classList.add('visible');
+      hamburger.setAttribute('aria-expanded', 'true');
+      sidebar.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeNav() {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('visible');
+      hamburger.setAttribute('aria-expanded', 'false');
+      sidebar.setAttribute('aria-hidden', 'true');
+    }
+
+    hamburger.addEventListener('click', openNav);
+    document.getElementById('sidebarClose').addEventListener('click', closeNav);
+    overlay.addEventListener('click', closeNav);
+
+    document.getElementById('sidebarLogout').addEventListener('click', async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+      window.location.href = '/login.html';
+    });
+  </script>
+</body>
+</html>
